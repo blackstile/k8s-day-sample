@@ -6,6 +6,9 @@
     <title>Chat com Gemini</title>
     <!-- Use url_for para encontrar o arquivo na pasta 'static' -->
     <link rel="stylesheet" href="{{context_path}}{{ url_for('static', filename='style.css') }}">
+    <script>
+        const contextPath = "{{context_path}}";
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>

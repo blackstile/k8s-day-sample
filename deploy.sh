@@ -78,6 +78,7 @@ usage() {
     echo "  -c    Executa a etapa de criação do cluster Kind."
     echo "  -d    Executa a etapa de deploy da aplicação."
     echo "  -a    Executa todas as etapas (build, cluster, deploy)."
+    echo "  -i    Import Dashboard para o grafana"
     echo "  -h    Mostra este menu de ajuda."
     exit 1
 }

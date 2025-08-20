@@ -6,7 +6,7 @@ metadata:
   labels:
     app: llm-app
 spec:
-  replicas: 2 # Define o número de pods que você quer rodando
+  replicas: 2
   selector:
     matchLabels:
       app: llm-app
@@ -14,6 +14,13 @@ spec:
     metadata:
       labels:
         app: llm-app
+      # ================================================== #
+      # ANOTAÇÕES DO PROMETHEUS                            #
+      # ================================================== #
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '5000'
+        prometheus.io/path: '/metrics'
     spec:
       containers:
       - name: llm-app-container
@@ -23,8 +30,8 @@ spec:
         ports:
         - containerPort: 5000
         env:
-          - name: APP_ROOT_CONTEXT
-            value: /app
+        - name: APP_ROOT_CONTEXT
+          value: /app
         envFrom:
         - secretRef:
             # Referencia o Secret que criamos para a API key

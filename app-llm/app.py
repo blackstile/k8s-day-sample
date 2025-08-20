@@ -5,8 +5,8 @@ import time
 import google.generativeai as genai
 from flask import Flask, request, jsonify, render_template 
 from prometheus_flask_exporter import PrometheusMetrics
+from prometheus_client import Histogram, Counter
 from google.generativeai.types import generation_types
-from werkzeug.middleware.proxy_fix import ProxyFix 
 
 class ValidationMessageError(Exception):
     """Custom exception raised when there are insufficient funds."""
@@ -32,29 +32,27 @@ metrics = PrometheusMetrics(app)
 logging.info(f"**** ROOT CONTEXT: {os.environ.get('APP_ROOT_CONTEXT')}")
 root_path = os.environ.get('APP_ROOT_CONTEXT')
 
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
-
 
 
 # 2. Define nossas métricas customizadas para LLM
-LLM_CALL_LATENCY = metrics.histogram(
+LLM_CALL_LATENCY = Histogram(
     'llm_call_latency_seconds',
     'Latência apenas da chamada à API do Gemini'
 )
-PROMPT_TOKENS = metrics.histogram(
+PROMPT_TOKENS = Histogram(
     'llm_prompt_tokens_total',
     'Número de tokens no prompt de entrada'
 )
-RESPONSE_TOKENS = metrics.histogram(
+RESPONSE_TOKENS = Histogram(
     'llm_response_tokens_total',
     'Número de tokens na resposta gerada pelo LLM'
 )
-CONTENT_MODERATION_BLOCKS = metrics.counter(
+CONTENT_MODERATION_BLOCKS = Counter(
     'llm_content_moderation_blocks_total',
     'Total de bloqueios pelo agente moderador',
-    labels={'block_type': None} # Label para saber se bloqueou o 'prompt' ou a 'response'
+    labelnames=['block_type': None] # Label para saber se bloqueou o 'prompt' ou a 'response'
 )
-LLM_API_ERRORS = metrics.counter(
+LLM_API_ERRORS = Counter(
     'llm_api_errors_total',
     'Total de erros específicos da API do LLM'
 )

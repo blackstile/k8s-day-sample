@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // Agora a URL da API é apenas um caminho relativo!
-    const API_URL = "/chat"; // <-- MUITO MAIS SIMPLES!
+    
+    const API_URL = (contextPath || "") + "/chat"; 
 
     const form = document.getElementById("prompt-form");
     const promptInput = document.getElementById("prompt-input");
@@ -8,7 +8,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const responseArea = document.getElementById("response-area");
     const loadingIndicator = document.getElementById("loading-indicator");
 
-    // O resto do código continua exatamente o mesmo
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const prompt = promptInput.value.trim();

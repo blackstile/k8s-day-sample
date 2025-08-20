@@ -19,6 +19,7 @@ spec:
           image: prom/prometheus:v2.47.2
           args:
             - "--config.file=/etc/prometheus/prometheus.yml"
+            # - "--web.external-url=http://localhost/prometheus"
           ports:
             - containerPort: 9090
           volumeMounts:
