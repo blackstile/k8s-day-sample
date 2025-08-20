@@ -1,0 +1,88 @@
+# =========================================
+# PYTHON / FLASK
+# =========================================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Arquivos de configuração locais
+*.env
+*.flaskenv
+instance/
+*.ini
+*.cfg
+*.conf
+
+# Banco de dados SQLite e backups
+*.db
+*.sqlite
+*.sqlite3
+*.bak
+
+# Uploads temporários e mídia
+uploads/
+tmp/
+media/
+
+# =========================================
+# VIRTUALENV
+# =========================================
+venv/
+.venv/
+ENV/
+env/
+
+# =========================================
+# TESTES E RELATÓRIOS
+# =========================================
+tests/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+
+# =========================================
+# LOGS
+# =========================================
+*.log
+logs/
+
+# =========================================
+# GIT / DOCKER
+# =========================================
+.git/
+.gitignore
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+
+# =========================================
+# IDEs / EDITORES
+# =========================================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# =========================================
+# SISTEMAS OPERACIONAIS
+# =========================================
+# macOS
+.DS_Store
+
+# Linux
+*~
+
+# Windows
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# =========================================
+# NODE (caso use para assets)
+# =========================================
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log

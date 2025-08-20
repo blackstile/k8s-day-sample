@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-app-deployment
+  namespace: app-dev
+  labels:
+    app: llm-app
+spec:
+  replicas: 2 # Define o número de pods que você quer rodando
+  selector:
+    matchLabels:
+      app: llm-app
+  template:
+    metadata:
+      labels:
+        app: llm-app
+    spec:
+      containers:
+      - name: llm-app-container
+        # Substitua pela sua imagem de contêiner
+        image: blackstile/app-llm:1.0.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+        env:
+          - name: APP_ROOT_CONTEXT
+            value: /app
+        envFrom:
+        - secretRef:
+            # Referencia o Secret que criamos para a API key
+            name: gemini-api-secret

@@ -1,0 +1,101 @@
+# =========================================
+# PYTHON
+# =========================================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs e arquivos temporários
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.pid
+*.seed
+*.cover
+*.coverage
+*.dat
+*.out
+*.tmp
+
+# Virtualenvs
+.venv/
+venv/
+ENV/
+env/
+
+# Configurações locais
+instance/
+*.env
+*.flaskenv
+*.ini
+*.cfg
+*.conf
+
+# Cache
+.cache/
+.mypy_cache/
+.pytest_cache/
+.tox/
+.coverage.*
+htmlcov/
+
+# =========================================
+# FLASK
+# =========================================
+# Arquivos gerados pelo Flask
+*.db
+*.sqlite
+*.sqlite3
+*.bak
+*.swp
+
+# Arquivos de upload temporários
+uploads/
+tmp/
+media/
+
+# =========================================
+# IDEs / EDITORES
+# =========================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# JetBrains / PyCharm
+.idea/
+
+# Outros
+*.sublime-project
+*.sublime-workspace
+
+# =========================================
+# SISTEMAS OPERACIONAIS
+# =========================================
+# macOS
+.DS_Store
+
+# Linux
+*~
+
+# Windows
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# =========================================
+# DOCKER (caso use)
+# =========================================
+docker-compose.override.yml
+.docker/
+*.pid
+*.sock
+
+# =========================================
+# TESTES E RELATÓRIOS
+# =========================================
+tests/__pycache__/
+tests/.pytest_cache/
+reports/
+coverage.xml
