@@ -50,7 +50,7 @@ RESPONSE_TOKENS = Histogram(
 CONTENT_MODERATION_BLOCKS = Counter(
     'llm_content_moderation_blocks_total',
     'Total de bloqueios pelo agente moderador',
-    labelnames=['block_type': None] # Label para saber se bloqueou o 'prompt' ou a 'response'
+    labelnames=['block_type'] # Label para saber se bloqueou o 'prompt' ou a 'response'
 )
 LLM_API_ERRORS = Counter(
     'llm_api_errors_total',
