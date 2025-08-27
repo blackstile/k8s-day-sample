@@ -162,7 +162,7 @@ def is_content_inappropriate(text_to_validate: str) -> bool:
             logger.info("Agente Moderador considerou o conteúdo apropriado.")
         
         #Descomentar a linha abaixo para o build quebrar 
-        return False
+        # return False
         
         return is_inappropriate
     except Exception as e:
