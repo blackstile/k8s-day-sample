@@ -46,14 +46,14 @@ jobs:
         run: |
           sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
         
+          # A variável de shell continua a mesma
           NEW_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/app-llm:${{ steps.commit.outputs.short }}"
 
-          echo -e "chamando o yq para atualizar o deployment "
-          echo -e "NEW_IMAGE=${NEW_IMAGE}"
+          # O comando yq é modificado
+          yq e -i '.spec.template.spec.containers[0].image = $new_image_val' --arg new_image_val "$NEW_IMAGE" app-llm/k8s/02-deploy.yaml
 
-          # Edita o arquivo de deployment para usar a nova imagem.
-          # Altere 'app-llm/k8s/deployment.yaml' se o caminho for diferente.
-          yq e -i '.spec.template.spec.containers[0].image = strenv($NEW_IMAGE)' app-llm/k8s/*deploy.yaml
+
+
 
       - name: Commit and push changes
         run: |
