@@ -25,7 +25,7 @@ spec:
       containers:
         - name: llm-app-container
           # Substitua pela sua imagem de contêiner
-          image: 0000000
+          image: blackstile/app-llm:4184f31
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
