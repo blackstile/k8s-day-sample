@@ -53,13 +53,13 @@ jobs:
 
           # Edita o arquivo de deployment para usar a nova imagem.
           # Altere 'app-llm/k8s/deployment.yaml' se o caminho for diferente.
-          yq e -i '.spec.template.spec.containers[0].image = strenv(NEW_IMAGE)' app-llm/k8s/*deploy*.yaml
+          yq e -i '.spec.template.spec.containers[0].image = strenv(NEW_IMAGE)' app-llm/k8s/02-deploy.yaml
 
       - name: Commit and push changes
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add app-llm/k8s/*-deploy.yaml
+          git add app-llm/k8s/02-deploy.yaml
           
           if git diff --staged --quiet; then
             echo "Nenhuma mudança no manifesto para commitar."

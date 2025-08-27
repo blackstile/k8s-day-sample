@@ -76,7 +76,7 @@ redeploy_app(){
     kubectl config set-context --current --namespace=app-dev
 
     echo "### Excluindo a versão antiga da aplicação"
-    kubectl delete -f app-llm/k8s
+    kubectl delete -f app-llm/k8s  --ignore-not-found=true
     echo "### Realizando o deploy da aplicação"
     kubectl apply -f app-llm/k8s
 

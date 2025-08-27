@@ -171,10 +171,10 @@ h2 {
   height: auto;
 }
 
-@media (min-width: 768px) {
+/* @media (min-width: 768px) {
   .img-responsive {
     width: 50%;
   }
-}
+} */
 
 
