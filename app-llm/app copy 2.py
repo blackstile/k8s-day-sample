@@ -2,14 +2,11 @@ import os
 import logging
 import json
 import time
-import threading
 import google.generativeai as genai
 from flask import Flask, request, jsonify, render_template 
 from prometheus_flask_exporter import PrometheusMetrics
 from prometheus_client import Histogram, Counter
 from google.generativeai.types import generation_types
-from google.generativeai.types import BlockedPromptException
-from google.api_core import exceptions as api_core_exceptions
 
 class ValidationMessageError(Exception):
     """Custom exception raised when there are insufficient funds."""
@@ -93,17 +90,15 @@ def chat():
     if not prompt:
         return jsonify({"error": "O campo 'prompt' é obrigatório"}), 400
 
-    validation_thread_prompt = threading.Thread(
-        target=validate_content_and_log_metric,
-        args=(prompt, 'prompt')
-    )
-    validation_thread_prompt.start()
-
+    # --- VALIDAÇÃO DA ENTRADA ---
+    if is_content_inappropriate(prompt):
+        # Incrementa métrica de bloqueio de prompt
+        CONTENT_MODERATION_BLOCKS.labels(block_type='prompt').inc()
+        return jsonify({"error": "Sua mensagem contém conteúdo impróprio..."}), 400
 
     try:
         # Mede e registra os tokens de entrada
         prompt_token_count = model.count_tokens(prompt).total_tokens
-        logger.info(f"Prompt Token count {prompt_token_count}")
         PROMPT_TOKENS.observe(prompt_token_count)
         
         # Mede a latência da chamada ao LLM
@@ -115,34 +110,24 @@ def chat():
         llm_response_text = response.text
 
         # --- VALIDAÇÃO DA SAÍDA ---
-        validation_thread_response = threading.Thread(
-            target=validate_content_and_log_metric,
-            args=(llm_response_text, 'response')
-        )
-        validation_thread_response.start()
+        if is_content_inappropriate(llm_response_text):
+            # Incrementa métrica de bloqueio de resposta
+            CONTENT_MODERATION_BLOCKS.labels(block_type='response').inc()
+            return jsonify({"error": "A resposta gerada foi considerada imprópria..."}), 500
 
         # Mede e registra os tokens de saída
         response_token_count = model.count_tokens(llm_response_text).total_tokens
-        logger.info(f"Response Token count {response_token_count}")
         RESPONSE_TOKENS.observe(response_token_count)
 
         logger.info("Resposta gerada e validada com sucesso.")
         return jsonify({"response": llm_response_text})
 
-    except api_core_exceptions.ServiceUnavailable as e:
+    except (generation_types.BlockedPromptError, generation_types.StopCandidateException) as e:
+        # Erro específico da API que não é uma falha, mas um bloqueio de segurança nativo
         LLM_API_ERRORS.inc()
-        logger.error(f"Erro de comunicação com a API (ServiceUnavailable): {e}", exc_info=True)
-        # Forneça uma mensagem de erro que ajude a depurar
-        return jsonify({"error": "Falha ao se comunicar com a API. Verifique a chave de API e a conectividade de rede."}), 503
-
-    # 2. Captura o erro de BLOQUEIO DE CONTEÚDO (corrigido)
-    except BlockedPromptException as e:
-        LLM_API_ERRORS.inc()
-        logger.warning(f"Chamada à API do Gemini bloqueada por política de segurança: {e}")
+        logger.warning(f"Chamada à API do Gemini bloqueada: {e}")
         return jsonify({"error": "A solicitação foi bloqueada pela política de segurança da API."}), 400
         
-
-
     except Exception as e:
         # Outros erros genéricos da API ou da aplicação
         LLM_API_ERRORS.inc()
@@ -180,18 +165,7 @@ def is_content_inappropriate(text_to_validate: str) -> bool:
         logger.error(f"Erro no serviço de moderação: {e}. Bloqueando por segurança.", exc_info=True)
         return True
 
-def validate_content_and_log_metric(text: str, block_type: str):
-    """
-    Função alvo para a thread. Valida o conteúdo e incrementa a métrica
-    se for considerado impróprio, sem interferir na requisição principal.
-    """
-    if is_content_inappropriate(text):
-        # A métrica é incrementada aqui, em segundo plano.
-        CONTENT_MODERATION_BLOCKS.labels(block_type=block_type).inc()
-        logger.warning(f"Conteúdo impróprio detectado em segundo plano para o tipo: {block_type}")
-
-
-
 if __name__ == "__main__":
     logger.info("Iniciando a aplicação Flask em modo monolítico.")
     app.run(host="0.0.0.0", port=5000)
+

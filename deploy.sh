@@ -37,6 +37,7 @@ create_cluster() {
     echo "--> Criando novo cluster 'k8s-day' com a configuração 'kind.yaml'..."
     kind create cluster --name k8s-day --config kind.yaml
     
+    kubectl apply -f components.yaml
     echo "### Cluster criado com sucesso! ###"
 }
 
@@ -69,15 +70,50 @@ deploy_application() {
     echo "### Deploy finalizado com sucesso! ###"
 }
 
+redeploy_app(){
+
+    echo "--> Configurando o contexto para o namespace 'app-dev'..."
+    kubectl config set-context --current --namespace=app-dev
+
+    echo "### Excluindo a versão antiga da aplicação"
+    kubectl delete -f app-llm/k8s
+    echo "### Realizando o deploy da aplicação"
+    kubectl apply -f app-llm/k8s
+
+    echo "### Deploy da Aplicação LLM finalizada com sucesso! ###"
+}
+
+redeploy_observability(){
+
+    kubectl config set-context --current --namespace=monitoring-dev
+    echo "--> Excluindo deploy da stack de observabilidade (Prometheus e Grafana)..."
+    kubectl delete -f observability/00-prometheus/  --ignore-not-found=true
+    kubectl delete -f observability/01-grafana/  --ignore-not-found=true
+    
+    echo "--> Fazendo deploy da stack de observabilidade (Prometheus e Grafana)..."
+    kubectl apply -f observability/00-prometheus/
+    kubectl apply -f observability/01-grafana/
+
+    kubectl wait --namespace monitoring-dev \
+      --for=condition=ready pod \
+      --selector=app.kubernetes.io/component=controller \
+      --timeout=30s
+    
+    echo "### Deploy do observability finalizado com sucesso! ###"
+    kubectl config set-context --current --namespace=app-dev
+}
+
 # Função para exibir a ajuda
 usage() {
     echo "Uso: $0 [flags]"
     echo
     echo "Flags disponíveis:"
+    echo "  -a    Executa todas as etapas (build, cluster, deploy)."
     echo "  -b    Executa a etapa de build da imagem Docker."
     echo "  -c    Executa a etapa de criação do cluster Kind."
     echo "  -d    Executa a etapa de deploy da aplicação."
-    echo "  -a    Executa todas as etapas (build, cluster, deploy)."
+    echo "  -r    Executa o re-deploy da aplicação LLM no kubernetes"
+    echo "  -o    Executa o re-deploy do grafana e prometheus no kubernetes"
     echo "  -i    Import Dashboard para o grafana"
     echo "  -h    Mostra este menu de ajuda."
     exit 1
@@ -91,8 +127,13 @@ if [ $# -eq 0 ]; then
 fi
 
 # Processa as flags passadas na linha de comando
-while getopts "bcda" opt; do
+while getopts "abcdro" opt; do
   case ${opt} in
+    a )
+      build_image
+      create_cluster
+      deploy_application
+      ;;
     b )
       build_image
       ;;
@@ -102,10 +143,11 @@ while getopts "bcda" opt; do
     d )
       deploy_application
       ;;
-    a )
-      build_image
-      create_cluster
-      deploy_application
+    r )
+      redeploy_app
+      ;;
+    o )
+      redeploy_observability
       ;;
     h|? )
       usage

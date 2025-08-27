@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ARGO_NS="argocd"
-MANIFEST_URL="https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
+#MANIFEST_URL="https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
+MANIFEST_URL="cicd/argocd-manifest-install.yaml"
 TIMEOUT="180s"
 
 usage() {
