@@ -23,16 +23,16 @@ spec:
         prometheus.io/path: '/metrics'
     spec:
       containers:
-      - name: llm-app-container
-        # Substitua pela sua imagem de contêiner
-        image: blackstile/app-llm:1.0.0
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 5000
-        env:
-        - name: APP_ROOT_CONTEXT
-          value: /app
-        envFrom:
-        - secretRef:
-            # Referencia o Secret que criamos para a API key
-            name: gemini-api-secret
+        - name: llm-app-container
+          # Substitua pela sua imagem de contêiner
+          image: ""
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          env:
+            - name: APP_ROOT_CONTEXT
+              value: /app
+          envFrom:
+            - secretRef:
+                # Referencia o Secret que criamos para a API key
+                name: gemini-api-secret
