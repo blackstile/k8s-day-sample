@@ -5,8 +5,8 @@ import time
 import google.generativeai as genai
 from flask import Flask, request, jsonify, render_template 
 from prometheus_flask_exporter import PrometheusMetrics
+from prometheus_client import Histogram, Counter
 from google.generativeai.types import generation_types
-
 
 class ValidationMessageError(Exception):
     """Custom exception raised when there are insufficient funds."""
@@ -25,29 +25,34 @@ logger = logging.getLogger(__name__)
 
 # --- Fim da Configuração do Logger ---
 
-app = Flask(__name__)
 
+app = Flask(__name__)
 metrics = PrometheusMetrics(app)
 
+logging.info(f"**** ROOT CONTEXT: {os.environ.get('APP_ROOT_CONTEXT')}")
+root_path = os.environ.get('APP_ROOT_CONTEXT')
+
+
+
 # 2. Define nossas métricas customizadas para LLM
-LLM_CALL_LATENCY = metrics.new_histogram(
+LLM_CALL_LATENCY = Histogram(
     'llm_call_latency_seconds',
     'Latência apenas da chamada à API do Gemini'
 )
-PROMPT_TOKENS = metrics.new_histogram(
+PROMPT_TOKENS = Histogram(
     'llm_prompt_tokens_total',
     'Número de tokens no prompt de entrada'
 )
-RESPONSE_TOKENS = metrics.new_histogram(
+RESPONSE_TOKENS = Histogram(
     'llm_response_tokens_total',
     'Número de tokens na resposta gerada pelo LLM'
 )
-CONTENT_MODERATION_BLOCKS = metrics.new_counter(
+CONTENT_MODERATION_BLOCKS = Counter(
     'llm_content_moderation_blocks_total',
     'Total de bloqueios pelo agente moderador',
-    labels={'block_type': None} # Label para saber se bloqueou o 'prompt' ou a 'response'
+    labelnames=['block_type'] # Label para saber se bloqueou o 'prompt' ou a 'response'
 )
-LLM_API_ERRORS = metrics.new_counter(
+LLM_API_ERRORS = Counter(
     'llm_api_errors_total',
     'Total de erros específicos da API do LLM'
 )
@@ -67,7 +72,6 @@ model = genai.GenerativeModel('gemini-1.5-pro-latest')
 logger.info("Modelo 'gemini-1.5-pro-latest' inicializado.")
 
 
-# --- NOVA ROTA PARA SERVIR O FRONTEND ---
 @app.route("/")
 def home():
     """
@@ -75,42 +79,60 @@ def home():
     """
     logger.info("Servindo a página principal index.html")
     # O Flask procura automaticamente na pasta 'templates'
-    return render_template("index.html")
+    return render_template("index.html", context_path=root_path)
 # --- FIM DA NOVA ROTA ---
 
 
-# --- ROTA DA API (sem alterações na lógica) ---
 @app.route("/chat", methods=["POST"])
 def chat():
-    request_id = request.headers.get('X-Request-ID', 'N/A')
-    logger.info(f"Requisição recebida no endpoint /chat. Request ID: {request_id}")
-
-    if not request.is_json:
-        logger.warning(f"Requisição inválida (não é JSON). Request ID: {request_id}")
-        return jsonify({"error": "Request deve ser do tipo JSON"}), 400
-
     data = request.get_json()
     prompt = data.get("prompt")
-
     if not prompt:
-        logger.warning(f"Requisição sem o campo 'prompt'. Request ID: {request_id}")
         return jsonify({"error": "O campo 'prompt' é obrigatório"}), 400
 
-    logger.info(f"Enviando prompt para a API do Gemini. Request ID: {request_id}")
+    # --- VALIDAÇÃO DA ENTRADA ---
+    if is_content_inappropriate(prompt):
+        # Incrementa métrica de bloqueio de prompt
+        CONTENT_MODERATION_BLOCKS.labels(block_type='prompt').inc()
+        return jsonify({"error": "Sua mensagem contém conteúdo impróprio..."}), 400
+
     try:
+        # Mede e registra os tokens de entrada
+        prompt_token_count = model.count_tokens(prompt).total_tokens
+        PROMPT_TOKENS.observe(prompt_token_count)
+        
+        # Mede a latência da chamada ao LLM
+        start_time = time.time()
         response = model.generate_content(prompt)
-        logger.info(f"Resposta recebida da API do Gemini com sucesso. Request ID: {request_id}")
-        logger.info(response.text)
-        if is_content_inappropriate(response.text):
-            raise ValidationMessageError("O gemini retornou conteudo inapropriado")
-        return jsonify({"response": response.text}), 200
-    except ValidationMessageError as e:
-        # TODO: adicioanr counter prometheus para conteudo inapropriado
-        return jsonify({"error": "Conteudo inapropriado retornado pelo Gemini"}), 500
+        latency = time.time() - start_time
+        LLM_CALL_LATENCY.observe(latency)
+        
+        llm_response_text = response.text
+
+        # --- VALIDAÇÃO DA SAÍDA ---
+        if is_content_inappropriate(llm_response_text):
+            # Incrementa métrica de bloqueio de resposta
+            CONTENT_MODERATION_BLOCKS.labels(block_type='response').inc()
+            return jsonify({"error": "A resposta gerada foi considerada imprópria..."}), 500
+
+        # Mede e registra os tokens de saída
+        response_token_count = model.count_tokens(llm_response_text).total_tokens
+        RESPONSE_TOKENS.observe(response_token_count)
+
+        logger.info("Resposta gerada e validada com sucesso.")
+        return jsonify({"response": llm_response_text})
+
+    except (generation_types.BlockedPromptError, generation_types.StopCandidateException) as e:
+        # Erro específico da API que não é uma falha, mas um bloqueio de segurança nativo
+        LLM_API_ERRORS.inc()
+        logger.warning(f"Chamada à API do Gemini bloqueada: {e}")
+        return jsonify({"error": "A solicitação foi bloqueada pela política de segurança da API."}), 400
+        
     except Exception as e:
-        logger.error(f"Ocorreu um erro ao chamar a API do Gemini. Request ID: {request_id}", exc_info=True)
-        return jsonify({"error": "Falha ao se comunicar com a API do Gemini"}), 500
-# --- FIM DA ROTA DA API ---
+        # Outros erros genéricos da API ou da aplicação
+        LLM_API_ERRORS.inc()
+        logger.error(f"Ocorreu um erro na chamada da API: {e}", exc_info=True)
+        return jsonify({"error": "Falha ao se comunicar com a API do Gemini."}), 500
 
 # @app.route("/validator", methods=["POST"])
 def validator():
