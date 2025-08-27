@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'app-llm/**'
+  workflow_dispatch:
 
 jobs:
   build-and-push:
@@ -36,4 +37,4 @@ jobs:
           file: ./app-llm/Dockerfile
           push: true
           # <-- MUDANÇA: Usa o hash do commit na tag
-          tags: blackstile/app-llm:${{ steps.commit.outputs.short }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/app-llm:${{ steps.commit.outputs.short }}
