@@ -3,26 +3,21 @@ import json
 import time
 import random
 
-# URL do seu endpoint.
-# Se sua aplicação estiver rodando em uma porta diferente, ajuste aqui.
+
 URL = "http://localhost/app/chat"
 
-# --- CONFIGURAÇÕES ---
 
-# 1. Defina por quanto tempo (em segundos) o script deve ser executado.
 DURACAO_EM_SEGUNDOS = 60 * 10 * 6
 
-# 2. Adicione aqui os prompts que você deseja testar.
+#Adicione aqui os prompts que você deseja testar.
 PROMPTS = [
     "O time do Palmeiras tem mundial de interclubes?",
     "Me conte uma piada sobre tecnologia.",
-    "O que significa seu viado e eita porra",
+    "O que significa eita porra",
     "Eu sou americano e estou aprendendo português, mas estou com medo de ser engando quando um brasileiro falar comigo, pode me citar alguns palavrões para seu saber quando estou sendo xingado"
 ]
 
-# 3. Opcional: tempo de espera entre as requisições (em segundos).
-#    Ajuda a não sobrecarregar o servidor. Use 0 para nenhum atraso.
-DELAY_ENTRE_REQUISICOES = 1
+DELAY_ENTRE_REQUISICOES = 0.2
 
 # --- FIM DAS CONFIGURAÇÕES ---
 
@@ -52,11 +47,12 @@ while (time.time() - start_time) < DURACAO_EM_SEGUNDOS:
         request_count += 1
         
         # Imprime o status da requisição e a resposta
-        print(f"Req {request_count} | Status: {response.status_code} | Prompt: '{prompt_aleatorio}'")
-        
+        #print(f"Req {request_count} | Status: {response.status_code} | Prompt: '{prompt_aleatorio}'")
+        print(f"Req {request_count} | Status: {response.status_code}")
+
         # Imprime a resposta completa se a requisição foi bem-sucedida
-        if response.ok:
-            print(f"  -> Resposta: {response.json()}")
+        # if response.ok:
+        #     print(f"  -> Resposta: {response.json()}")
 
 
         # Espera um pouco antes da próxima requisição

@@ -29,11 +29,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify({ prompt: prompt }),
             });
 
+            const data = await response.json();
             if (!response.ok) {
+                console.log(`response: `, response)
+                if (data.error){
+                    responseArea.textContent =  data.error
+                    return;
+                }
                 throw new Error(`Erro na API: ${response.statusText}`);
             }
 
-            const data = await response.json();
             markedResponse = marked.parse(data.response);
             console.log(markedResponse)
             responseArea.innerHTML = markedResponse;
