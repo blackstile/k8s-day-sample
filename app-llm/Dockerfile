@@ -1,10 +1,7 @@
-# Use uma imagem base oficial do Python
 FROM python:3.9-slim
 
-# Define o diretório de trabalho dentro do contêiner
 WORKDIR /app
 
-# Copia o arquivo de dependências
 COPY requirements.txt .
 
 # Instala as dependências

@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build, Push, and Update Manifest
 
 on:
   push:
@@ -11,15 +11,19 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write 
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Get commit hash
-        id: commit # <-- MUDANÇA: Adiciona um ID para a etapa
+        id: commit
         uses: pr-mpt/actions-commit-hash@v2
         with:
-          length: 7 # Pega os 7 primeiros caracteres do hash
+          length: 7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -36,5 +40,27 @@ jobs:
           context: ./app-llm
           file: ./app-llm/Dockerfile
           push: true
-          # <-- MUDANÇA: Usa o hash do commit na tag
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/app-llm:${{ steps.commit.outputs.short }}
+
+      - name: Update Kubernetes manifest
+        run: |
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
+          
+          NEW_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/app-llm:${{ steps.commit.outputs.short }}"
+          
+          # Edita o arquivo de deployment para usar a nova imagem.
+          # Altere 'app-llm/k8s/deployment.yaml' se o caminho for diferente.
+          yq e -i '.spec.template.spec.containers[0].image = strenv(NEW_IMAGE)' app-llm/k8s/deployment.yaml
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add app-llm/k8s/deployment.yaml
+          
+          if git diff --staged --quiet; then
+            echo "Nenhuma mudança no manifesto para commitar."
+          else
+            git commit -m "ci: Atualiza tag da imagem para ${{ steps.commit.outputs.short }} [skip ci]"
+            git push
+          fi
