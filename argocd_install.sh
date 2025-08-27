@@ -75,9 +75,20 @@ uninstall_argocd() {
   echo "✅ Desinstalação concluída."
 }
 
+show_admin_pass(){
+    ADMIN_PASS=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+    echo "==================================================="
+    echo "✅ Instalação concluída!"
+    echo "🌐 Acesse: https://localhost/argocd"
+    echo "👤 Usuário: admin"
+    echo "🔑 Senha: ${ADMIN_PASS}"
+    echo "==================================================="
+}
+
 case "${1:-}" in
   -i)   install_argocd ;;
   -u) uninstall_argocd ;;
   -r) uninstall_argocd; install_argocd ;;
+  -p) show_admin_pass ;;
   *)         usage; exit 1 ;;
 esac
