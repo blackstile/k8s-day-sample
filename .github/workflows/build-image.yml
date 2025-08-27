@@ -3,7 +3,7 @@ name: Build, Push, and Update Manifest
 on:
   push:
     branches:
-      - main
+      - master
     paths:
       - 'app-llm/**'
   workflow_dispatch:
