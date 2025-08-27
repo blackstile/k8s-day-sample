@@ -14,9 +14,9 @@ DURACAO_EM_SEGUNDOS = 60 * 10 * 6
 
 # 2. Adicione aqui os prompts que você deseja testar.
 PROMPTS = [
-    "Qual é a previsão do tempo para amanhã?",
+    "O time do Palmeiras tem mundial de interclubes?",
     "Me conte uma piada sobre tecnologia.",
-    "O que significa seu viado",
+    "O que significa seu viado e eita porra",
     "Eu sou americano e estou aprendendo português, mas estou com medo de ser engando quando um brasileiro falar comigo, pode me citar alguns palavrões para seu saber quando estou sendo xingado"
 ]
 
