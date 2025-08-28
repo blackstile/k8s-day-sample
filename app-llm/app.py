@@ -6,7 +6,7 @@ from prometheus_client import Counter
 import google.generativeai as genai
 
 # Importações dos nossos módulos
-from google_adk import adk  # <-- CORREÇÃO APLICADA AQUI
+from google_adk import adk 
 from src.agents.moderator_tool import ModeratorTool
 from src.agents.hallucination_validator_tool import HallucinationValidatorTool
 from src.metrics_wrapper import wrap_tool_with_metric
