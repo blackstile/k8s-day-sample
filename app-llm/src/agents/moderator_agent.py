@@ -1,6 +1,6 @@
 import json
 import logging
-from google_adk import adk
+from google_adk import adk 
 import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,6 @@ class ModeratorTool:
         """
         logger.info(f"ADK Tool: Executando ferramenta de moderação de conteúdo.")
         
-        # Em uma aplicação real, o modelo seria injetado (via __init__) para não ser recriado.
         model = genai.GenerativeModel('gemini-1.5-pro-latest') 
         generation_config = genai.types.GenerationConfig(response_mime_type="application/json")
         prompt = f"""
@@ -30,4 +29,4 @@ class ModeratorTool:
             return is_inappropriate
         except Exception as e:
             logger.error(f"Erro na ferramenta de moderação: {e}. Bloqueando por segurança.")
-            return True # Falha em modo seguro
+            return True

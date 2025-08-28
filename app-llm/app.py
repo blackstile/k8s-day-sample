@@ -6,7 +6,7 @@ from prometheus_client import Counter
 import google.generativeai as genai
 
 # Importações dos nossos módulos
-from google_adk import adk
+from google_adk import adk  # <-- CORREÇÃO APLICADA AQUI
 from src.agents.moderator_tool import ModeratorTool
 from src.agents.hallucination_validator_tool import HallucinationValidatorTool
 from src.metrics_wrapper import wrap_tool_with_metric
@@ -25,7 +25,7 @@ REQUESTS_TOTAL = Counter(
 VALIDATION_EVENTS_TOTAL = Counter(
     'app_validation_events_total',
     'Total de eventos de validação executados pelos agentes',
-    ['validation_type']  # Labels: 'prompt_moderation', 'response_moderation', 'hallucination_check'
+    ['validation_type']
 )
 
 # --- Configuração da API do Gemini ---
@@ -39,7 +39,6 @@ except Exception as e:
     logger.critical(f"Falha ao inicializar o Gemini: {e}")
 
 # --- Envolvendo as Ferramentas com as Métricas ---
-# Criamos aliases das ferramentas para que o ADK possa diferenciá-las no prompt
 prompt_moderator_tool = wrap_tool_with_metric(
     tool_function=ModeratorTool.validate,
     counter=VALIDATION_EVENTS_TOTAL,
@@ -61,9 +60,8 @@ hallucination_tool_with_metric = wrap_tool_with_metric(
     counter=VALIDATION_EVENTS_TOTAL,
     labels={'validation_type': 'hallucination_check'}
 )
-hallucination_tool_with_metric.__name__ = "hallucination_validator" # Mantemos o nome original
+hallucination_tool_with_metric.__name__ = "hallucination_validator"
 hallucination_tool_with_metric.__doc__ = "Use esta ferramenta para verificar se uma resposta é uma alucinação. Retorna 'true' se for uma alucinação."
-
 
 # --- Prompt do Agente ADK ---
 AGENT_PROMPT = """
@@ -116,10 +114,8 @@ def chat():
         return jsonify({"error": "O campo 'prompt' é obrigatório"}), 400
 
     try:
-        # A chamada para o agente é a única lógica de negócio aqui
         response_text = main_agent.send(prompt)
         
-        # O agente retorna mensagens de erro específicas que definimos no prompt
         if response_text.startswith("ERRO:"):
             logger.warning(f"Agente ADK bloqueou a solicitação: {response_text}")
             return jsonify({"error": response_text}), 400
@@ -133,3 +129,4 @@ def chat():
 if __name__ == "__main__":
     logger.info("Iniciando a aplicação Flask com arquitetura de agentes ADK.")
     app.run(host="0.0.0.0", port=5000)
+
