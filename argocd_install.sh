@@ -3,13 +3,13 @@ set -euo pipefail
 
 ARGO_NS="argocd"
 #MANIFEST_URL="https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
-MANIFEST_URL="cicd/argocd-manifest-install.yaml"
+MANIFEST_URL="argocd-manifest-install.yaml"
 TIMEOUT="180s"
 
 usage() {
   cat <<EOF
 Uso:
-  $0 -i          # Instala o ArgoCD (usa seu snippet base)
+  $0 -i        # Instala o ArgoCD (usa seu snippet base)
   $0 -u        # Desinstala o ArgoCD (remove recursos e o namespace)
   $0 -r        # Desinstala e instala novamente
 EOF
@@ -86,9 +86,9 @@ show_admin_pass(){
 }
 
 case "${1:-}" in
-  -i)   install_argocd ;;
+  -i) install_argocd ;;
   -u) uninstall_argocd ;;
   -r) uninstall_argocd; install_argocd ;;
   -p) show_admin_pass ;;
-  *)         usage; exit 1 ;;
+  *)  usage; exit 1 ;;
 esac

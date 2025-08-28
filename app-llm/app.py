@@ -1,175 +1,135 @@
 import os
 import logging
-import json
-import time
-import google.generativeai as genai
-from flask import Flask, request, jsonify, render_template 
+from flask import Flask, request, jsonify, render_template
 from prometheus_flask_exporter import PrometheusMetrics
-from prometheus_client import Histogram, Counter
-from google.generativeai.types import generation_types
+from prometheus_client import Counter
+import google.generativeai as genai
 
-class ValidationMessageError(Exception):
-    """Custom exception raised when there are insufficient funds."""
-    def __init__(self, message="Sua mensagem tem conteudo inapropriado!!!"):
-        self.message = message
-        super().__init__(self.message)
+# Importações dos nossos módulos
+from google_adk import adk
+from src.agents.moderator_tool import ModeratorTool
+from src.agents.hallucination_validator_tool import HallucinationValidatorTool
+from src.metrics_wrapper import wrap_tool_with_metric
 
-
-# --- Configuração do Logger (sem alterações) ---
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+# --- Configuração do Logger, Flask, etc. ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
-
-# --- Fim da Configuração do Logger ---
-
-
 app = Flask(__name__)
-metrics = PrometheusMetrics(app)
+metrics = PrometheusMetrics(app, group_by='endpoint')
 
-logging.info(f"**** ROOT CONTEXT: {os.environ.get('APP_ROOT_CONTEXT')}")
-root_path = os.environ.get('APP_ROOT_CONTEXT')
-
-
-
-# 2. Define nossas métricas customizadas para LLM
-LLM_CALL_LATENCY = Histogram(
-    'llm_call_latency_seconds',
-    'Latência apenas da chamada à API do Gemini'
+# --- Métricas Prometheus ---
+REQUESTS_TOTAL = Counter(
+    'app_requests_total',
+    'Total de requisições recebidas no endpoint /chat'
 )
-PROMPT_TOKENS = Histogram(
-    'llm_prompt_tokens_total',
-    'Número de tokens no prompt de entrada'
-)
-RESPONSE_TOKENS = Histogram(
-    'llm_response_tokens_total',
-    'Número de tokens na resposta gerada pelo LLM'
-)
-CONTENT_MODERATION_BLOCKS = Counter(
-    'llm_content_moderation_blocks_total',
-    'Total de bloqueios pelo agente moderador',
-    labelnames=['block_type'] # Label para saber se bloqueou o 'prompt' ou a 'response'
-)
-LLM_API_ERRORS = Counter(
-    'llm_api_errors_total',
-    'Total de erros específicos da API do LLM'
+VALIDATION_EVENTS_TOTAL = Counter(
+    'app_validation_events_total',
+    'Total de eventos de validação executados pelos agentes',
+    ['validation_type']  # Labels: 'prompt_moderation', 'response_moderation', 'hallucination_check'
 )
 
-
+# --- Configuração da API do Gemini ---
 try:
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        logger.critical("A variável de ambiente GEMINI_API_KEY não foi definida.")
         raise ValueError("A variável de ambiente GEMINI_API_KEY não foi definida.")
     genai.configure(api_key=api_key)
     logger.info("API Key do Gemini configurada com sucesso.")
-except ValueError as e:
-    pass
+except Exception as e:
+    logger.critical(f"Falha ao inicializar o Gemini: {e}")
 
-model = genai.GenerativeModel('gemini-1.5-pro-latest')
-logger.info("Modelo 'gemini-1.5-pro-latest' inicializado.")
+# --- Envolvendo as Ferramentas com as Métricas ---
+# Criamos aliases das ferramentas para que o ADK possa diferenciá-las no prompt
+prompt_moderator_tool = wrap_tool_with_metric(
+    tool_function=ModeratorTool.validate,
+    counter=VALIDATION_EVENTS_TOTAL,
+    labels={'validation_type': 'prompt_moderation'}
+)
+prompt_moderator_tool.__name__ = "prompt_content_moderator"
+prompt_moderator_tool.__doc__ = "Use esta ferramenta para verificar se a PERGUNTA ORIGINAL DO USUÁRIO é apropriada. Retorna 'true' se for inapropriada."
 
+response_moderator_tool = wrap_tool_with_metric(
+    tool_function=ModeratorTool.validate,
+    counter=VALIDATION_EVENTS_TOTAL,
+    labels={'validation_type': 'response_moderation'}
+)
+response_moderator_tool.__name__ = "response_content_moderator"
+response_moderator_tool.__doc__ = "Use esta ferramenta para verificar se a RESPOSTA QUE VOCÊ GEROU é apropriada. Retorna 'true' se for inapropriada."
+
+hallucination_tool_with_metric = wrap_tool_with_metric(
+    tool_function=HallucinationValidatorTool.validate,
+    counter=VALIDATION_EVENTS_TOTAL,
+    labels={'validation_type': 'hallucination_check'}
+)
+hallucination_tool_with_metric.__name__ = "hallucination_validator" # Mantemos o nome original
+hallucination_tool_with_metric.__doc__ = "Use esta ferramenta para verificar se uma resposta é uma alucinação. Retorna 'true' se for uma alucinação."
+
+
+# --- Prompt do Agente ADK ---
+AGENT_PROMPT = """
+Você é um assistente de IA seguro e prestativo. Seu trabalho é responder às perguntas do usuário, mas apenas se elas passarem por um rigoroso processo de validação.
+
+Ferramentas disponíveis que você DEVE usar:
+- `prompt_content_moderator`: Verifica se a pergunta do usuário é ofensiva.
+- `response_content_moderator`: Verifica se a resposta que você está prestes a dar é ofensiva.
+- `hallucination_validator`: Verifica se a sua resposta é uma alucinação ou inconsistente com a pergunta.
+
+Siga este fluxo de trabalho para CADA pergunta:
+1.  Primeiro, use a ferramenta `prompt_content_moderator` para analisar a pergunta do usuário. Se a ferramenta retornar `true`, PARE imediatamente e responda exatamente com a string: "ERRO: CONTEÚDO IMPRÓPRIO NA ENTRADA".
+2.  Se a pergunta for apropriada, gere uma resposta inicial para o usuário. Não a mostre ainda.
+3.  Em seguida, use a ferramenta `response_content_moderator` para analisar a sua própria resposta gerada. Se a ferramenta retornar `true`, descarte a resposta e responda exatamente com: "ERRO: RESPOSTA IMPRÓPRIA GERADA".
+4.  Se a sua resposta for apropriada, use a ferramenta `hallucination_validator`, passando a pergunta original e a sua resposta. Se a ferramenta retornar `true`, descarte a resposta e responda exatamente com: "ERRO: RESPOSTA INVÁLIDA GERADA".
+5.  Se a sua resposta passar por TODAS as verificações, e somente neste caso, entregue a resposta final ao usuário.
+"""
+
+# --- Criação do Agente Principal ---
+try:
+    main_agent = adk.Agent(
+        prompt=AGENT_PROMPT,
+        tools=[
+            prompt_moderator_tool,
+            response_moderator_tool,
+            hallucination_tool_with_metric
+        ],
+        model='gemini-1.5-pro-latest'
+    )
+    logger.info("Agente ADK inicializado com ferramentas com métricas.")
+except Exception as e:
+    logger.critical(f"Falha ao criar o Agente ADK: {e}")
+    main_agent = None
 
 @app.route("/")
 def home():
-    """
-    Esta rota serve a página principal da aplicação (o frontend).
-    """
-    logger.info("Servindo a página principal index.html")
-    # O Flask procura automaticamente na pasta 'templates'
-    return render_template("index.html", context_path=root_path)
-# --- FIM DA NOVA ROTA ---
-
+    """Serve a página principal do chat."""
+    return render_template("index.html")
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    data = request.get_json()
-    prompt = data.get("prompt")
+    """Recebe o prompt do usuário e retorna a resposta do agente."""
+    REQUESTS_TOTAL.inc()
+
+    if not main_agent:
+        return jsonify({"error": "O serviço de IA não está configurado corretamente."}), 503
+
+    prompt = request.get_json().get("prompt")
     if not prompt:
         return jsonify({"error": "O campo 'prompt' é obrigatório"}), 400
 
-    # --- VALIDAÇÃO DA ENTRADA ---
-    if is_content_inappropriate(prompt):
-        # Incrementa métrica de bloqueio de prompt
-        CONTENT_MODERATION_BLOCKS.labels(block_type='prompt').inc()
-        return jsonify({"error": "Sua mensagem contém conteúdo impróprio..."}), 400
-
     try:
-        # Mede e registra os tokens de entrada
-        prompt_token_count = model.count_tokens(prompt).total_tokens
-        PROMPT_TOKENS.observe(prompt_token_count)
+        # A chamada para o agente é a única lógica de negócio aqui
+        response_text = main_agent.send(prompt)
         
-        # Mede a latência da chamada ao LLM
-        start_time = time.time()
-        response = model.generate_content(prompt)
-        latency = time.time() - start_time
-        LLM_CALL_LATENCY.observe(latency)
-        
-        llm_response_text = response.text
+        # O agente retorna mensagens de erro específicas que definimos no prompt
+        if response_text.startswith("ERRO:"):
+            logger.warning(f"Agente ADK bloqueou a solicitação: {response_text}")
+            return jsonify({"error": response_text}), 400
 
-        # --- VALIDAÇÃO DA SAÍDA ---
-        if is_content_inappropriate(llm_response_text):
-            # Incrementa métrica de bloqueio de resposta
-            CONTENT_MODERATION_BLOCKS.labels(block_type='response').inc()
-            return jsonify({"error": "A resposta gerada foi considerada imprópria..."}), 500
-
-        # Mede e registra os tokens de saída
-        response_token_count = model.count_tokens(llm_response_text).total_tokens
-        RESPONSE_TOKENS.observe(response_token_count)
-
-        logger.info("Resposta gerada e validada com sucesso.")
-        return jsonify({"response": llm_response_text})
-
-    except (generation_types.BlockedPromptError, generation_types.StopCandidateException) as e:
-        # Erro específico da API que não é uma falha, mas um bloqueio de segurança nativo
-        LLM_API_ERRORS.inc()
-        logger.warning(f"Chamada à API do Gemini bloqueada: {e}")
-        return jsonify({"error": "A solicitação foi bloqueada pela política de segurança da API."}), 400
+        return jsonify({"response": response_text})
         
     except Exception as e:
-        # Outros erros genéricos da API ou da aplicação
-        LLM_API_ERRORS.inc()
-        logger.error(f"Ocorreu um erro na chamada da API: {e}", exc_info=True)
-        return jsonify({"error": "Falha ao se comunicar com a API do Gemini."}), 500
-
-# @app.route("/validator", methods=["POST"])
-def validator():
-    data = request.get_json()
-    prompt = data.get("prompt")
-    llmResponse =  data.get("llmOutput")
-    return jsonify({"isContent": is_content_inappropriate(llmResponse)})
-
-def is_content_inappropriate(text_to_validate: str) -> bool:
-    logger.info(f"Iniciando validação de conteúdo.")
-    moderator_prompt = f"""
-    Você é um Agente Moderador de Conteúdo treinado. Sua única tarefa é analisar o texto e determinar se ele contém linguagem de baixo calão, ofensas, xingamentos ou profanidades em português do Brasil.
-    Seja rigoroso. Analise o seguinte texto:
-    ---
-    {text_to_validate}
-    ---
-    Sua resposta DEVE ser um objeto JSON válido com uma única chave "inapropriado" e um valor booleano (`true` ou `false`).
-    """    
-    try:
-        generation_config = genai.types.GenerationConfig(response_mime_type="application/json")
-        moderator_response = model.generate_content(moderator_prompt, generation_config=generation_config)
-        response_data = json.loads(moderator_response.text)
-        is_inappropriate = response_data.get("inapropriado", False)
-        if is_inappropriate:
-            logger.warning("Agente Moderador detectou conteúdo inapropriado.")
-        else:
-            logger.info("Agente Moderador considerou o conteúdo apropriado.")
-        
-        #Descomentar a linha abaixo para o build quebrar 
-        # return False
-        
-        return is_inappropriate
-    except Exception as e:
-        logger.error(f"Erro no serviço de moderação: {e}. Bloqueando por segurança.", exc_info=True)
-        return True
+        logger.error(f"Ocorreu um erro inesperado na chamada do agente ADK: {e}", exc_info=True)
+        return jsonify({"error": "Ocorreu um erro inesperado no processamento do agente."}), 500
 
 if __name__ == "__main__":
-    logger.info("Iniciando a aplicação Flask em modo monolítico.")
+    logger.info("Iniciando a aplicação Flask com arquitetura de agentes ADK.")
     app.run(host="0.0.0.0", port=5000)
-

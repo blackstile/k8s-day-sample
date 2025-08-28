@@ -37,7 +37,7 @@ create_cluster() {
     echo "--> Criando novo cluster 'k8s-day' com a configuração 'kind.yaml'..."
     kind create cluster --name k8s-day --config kind.yaml
     
-    kubectl apply -f components.yaml
+    kubectl apply -f metrics-server.yaml
     echo "### Cluster criado com sucesso! ###"
 }
 
@@ -46,8 +46,9 @@ deploy_application() {
     echo "### Etapa 3: Fazendo deploy da aplicação no Kubernetes ###"
     
     echo "--> Aplicando o Ingress NGINX Controller..."
+    #kubectl apply -f nginx-ingress-controller.yaml
     kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-
+    
     # Adicionando uma espera para o Ingress Controller ficar pronto
     echo "--> Aguardando o Ingress Controller ficar pronto..."
     kubectl wait --namespace ingress-nginx \
@@ -119,7 +120,18 @@ usage() {
     exit 1
 }
 
-# --- Lógica de controle ---
+deploy_ingress(){
+      echo "--> Aplicando o Ingress NGINX Controller..."
+    kubectl apply -f nginx-ingress-controller.yaml
+
+    # Adicionando uma espera para o Ingress Controller ficar pronto
+    echo "--> Aguardando o Ingress Controller ficar pronto..."
+    kubectl wait --namespace ingress-nginx \
+      --for=condition=ready pod \
+      --selector=app.kubernetes.io/component=controller \
+      --timeout=180s
+
+}
 
 # Se nenhum argumento for passado, exibe a ajuda
 if [ $# -eq 0 ]; then
@@ -127,10 +139,10 @@ if [ $# -eq 0 ]; then
 fi
 
 # Processa as flags passadas na linha de comando
-while getopts "abcdro" opt; do
+while getopts "abcdiro" opt; do
   case ${opt} in
     a )
-      build_image
+      #build_image
       create_cluster
       deploy_application
       ;;
@@ -143,6 +155,9 @@ while getopts "abcdro" opt; do
     d )
       deploy_application
       ;;
+    i )
+      deploy_ingress
+      ;;      
     r )
       redeploy_app
       ;;
