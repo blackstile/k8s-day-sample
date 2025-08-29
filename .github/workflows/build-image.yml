@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - feature/v2
     paths:
       - 'app-llm/**'
   workflow_dispatch:
