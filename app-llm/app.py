@@ -97,6 +97,7 @@ try:
     logger.info("Agente ADK inicializado com ferramentas com métricas.")
 except Exception as e:
     logger.critical(f"Falha ao criar o Agente ADK: {e}")
+    print(f"Falha ao criar o Agente ADK: {e}")
     main_agent = None
 
 @app.route("/")
