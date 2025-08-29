@@ -103,9 +103,7 @@ try:
         model='gemini-1.5-pro-latest'
     )
     logger.info("Agente ADK inicializado com ferramentas com métricas.")
-    session_service = InMemorySessionService()
-    session = session_service.create_session(app_name=APP_NAME, user_id=USER_ID, session_id=SESSION_ID)
-    runner = Runner(agent=main_agent, app_name=APP_NAME, session_service=session_service)
+    
 
 except Exception as e:
     logger.critical(f"Falha ao criar o Agente ADK: {e}")
@@ -114,13 +112,19 @@ except Exception as e:
 
 
 
-def call_agent(query):
+async def call_agent(query):
     """
     Helper function to call the agent with a query.
     """
-    content = types.Content(role="user", parts=[types.Part(text=query)])
+    session_service = InMemorySessionService()
+    await session_service.create_session(app_name=APP_NAME, user_id=USER_ID, session_id=SESSION_ID)
+    runner = Runner(agent=main_agent, app_name=APP_NAME, session_service=session_service)
     events = runner.run(user_id=USER_ID, session_id=SESSION_ID, new_message=content)
-    final_response = None
+
+    content = types.Content(role="user", parts=[types.Part(text=query)])
+    
+    
+    final_response = ""
     for event in events:
         if event.is_final_response():
             final_response = event.content.parts[0].text
