@@ -119,11 +119,11 @@ async def call_agent(query):
     session_service = InMemorySessionService()
     await session_service.create_session(app_name=APP_NAME, user_id=USER_ID, session_id=SESSION_ID)
     runner = Runner(agent=main_agent, app_name=APP_NAME, session_service=session_service)
-    events = runner.run(user_id=USER_ID, session_id=SESSION_ID, new_message=content)
-
+    
     content = types.Content(role="user", parts=[types.Part(text=query)])
     
-    
+    events = runner.run(user_id=USER_ID, session_id=SESSION_ID, new_message=content)
+
     final_response = ""
     for event in events:
         if event.is_final_response():
@@ -138,7 +138,7 @@ def home():
     return render_template("index.html", context_path=root_path)
 
 @app.route("/chat", methods=["POST"])
-async def chat():
+def chat():
     """Recebe o prompt do usuário e retorna a resposta do agente."""
     REQUESTS_TOTAL.inc()
 
@@ -151,7 +151,7 @@ async def chat():
 
     try:
 
-        response_text = await call_agent(prompt)
+        response_text = call_agent(prompt)
         
         if response_text.startswith("ERRO:"):
             logger.warning(f"Agente ADK bloqueou a solicitação: {response_text}")
