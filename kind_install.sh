@@ -35,6 +35,11 @@ install_on_linux() {
     echo "Instalando kind em /usr/local/bin/kind..."
     chmod +x "./${KIND_FILE}"
     sudo mv "./${KIND_FILE}" /usr/local/bin/kind
+
+    echo "Install Kubeseal on Linux ...."
+    curl -OL "https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.31.0/kubeseal-0.31.0-linux-amd64.tar.gz"
+    tar -xvzf kubeseal-0.31.0-linux-amd64.tar.gz kubeseal
+    sudo install -m 755 kubeseal /usr/local/bin/kubeseal
 }
 
 # Função para instalar o kind no macOS

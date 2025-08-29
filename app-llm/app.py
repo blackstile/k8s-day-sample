@@ -4,9 +4,9 @@ from flask import Flask, request, jsonify, render_template
 from prometheus_flask_exporter import PrometheusMetrics
 from prometheus_client import Counter
 import google.generativeai as genai
+from google.adk.tools import FunctionTool
+from google.adk.agents import Agent 
 
-# Importações dos nossos módulos
-from google_adk import adk 
 from src.agents.moderator_tool import ModeratorTool
 from src.agents.hallucination_validator_tool import HallucinationValidatorTool
 from src.metrics_wrapper import wrap_tool_with_metric
@@ -82,12 +82,12 @@ Siga este fluxo de trabalho para CADA pergunta:
 
 # --- Criação do Agente Principal ---
 try:
-    main_agent = adk.Agent(
+    main_agent = Agent(
         prompt=AGENT_PROMPT,
         tools=[
-            prompt_moderator_tool,
-            response_moderator_tool,
-            hallucination_tool_with_metric
+            FunctionTools(prompt_moderator_tool),
+            FunctionTool(response_moderator_tool),
+            FunctionTool(hallucination_tool_with_metric)
         ],
         model='gemini-1.5-pro-latest'
     )

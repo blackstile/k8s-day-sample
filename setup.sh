@@ -58,6 +58,28 @@ install_argocd_apps(){
     kubectl apply -f argo-cd-apps/
 }
 
+
+install_sealed(){
+    local os
+    os="$(uname -s)"
+
+    case "${os}" in
+        Linux*)
+            curl -OL "https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.31.0/kubeseal-0.31.0-linux-amd64.tar.gz"
+            tar -xvzf kubeseal-0.31.0-linux-amd64.tar.gz kubeseal
+            sudo install -m 755 kubeseal /usr/local/bin/kubeseal
+            ;;
+        Darwin*)
+            brew install kubeseal
+            ;;
+        *)
+            echo "Erro: Sistema operacional ${os} não suportado."
+            exit 1
+            ;;
+    esac
+    kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.31.0/controller.yaml
+}
+
 ./kind_install.sh
 create_cluster;
 install_metrics_server;
@@ -67,5 +89,6 @@ echo -e "Instalando o Argo CD"
 deploy_observability;
 install_ingress_argocd;
 install_argocd_apps;
+install_sealed;
 
 

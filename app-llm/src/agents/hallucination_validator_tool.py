@@ -1,13 +1,11 @@
 import json
 import logging
-from google_adk import adk 
 import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
 
 class HallucinationValidatorTool:
     @staticmethod
-    @adk.tool
     def validate(original_prompt: str, response_text: str) -> bool:
         """
         Compara a resposta com a pergunta para detectar alucinações. Retorna 'true' se for uma alucinação.
