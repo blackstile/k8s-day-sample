@@ -138,7 +138,7 @@ def home():
     return render_template("index.html", context_path=root_path)
 
 @app.route("/chat", methods=["POST"])
-def chat():
+async def chat():
     """Recebe o prompt do usuário e retorna a resposta do agente."""
     REQUESTS_TOTAL.inc()
 
@@ -151,7 +151,7 @@ def chat():
 
     try:
 
-        response_text = call_agent(prompt)
+        response_text = await call_agent(prompt)
         
         if response_text.startswith("ERRO:"):
             logger.warning(f"Agente ADK bloqueou a solicitação: {response_text}")
