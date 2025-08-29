@@ -102,7 +102,7 @@ except Exception as e:
 @app.route("/")
 def home():
     """Serve a página principal do chat."""
-    return render_template("index.html")
+    return render_template("index.html", context_path=root_path)
 
 @app.route("/chat", methods=["POST"])
 def chat():
