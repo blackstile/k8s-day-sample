@@ -114,7 +114,7 @@ except Exception as e:
 
 
 
-async def call_agent(query):
+def call_agent(query):
     """
     Helper function to call the agent with a query.
     """
@@ -147,7 +147,7 @@ def chat():
 
     try:
 
-        response_text = await call_agent(prompt)
+        response_text = call_agent(prompt)
         
         if response_text.startswith("ERRO:"):
             logger.warning(f"Agente ADK bloqueou a solicitação: {response_text}")
