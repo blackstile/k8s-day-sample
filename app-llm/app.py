@@ -29,7 +29,7 @@ VALIDATION_EVENTS_TOTAL = Counter(
 )
 
 logging.info(f"**** ROOT CONTEXT: {os.environ.get('APP_ROOT_CONTEXT')}")
-root_path = os.environ.get('APP_ROOT_CONTEXT')
+root_path = os.environ.get('APP_ROOT_CONTEXT') or ""
 
 # --- Configuração da API do Gemini ---
 try:
@@ -88,7 +88,7 @@ try:
     main_agent = Agent(
         prompt=AGENT_PROMPT,
         tools=[
-            FunctionTools(prompt_moderator_tool),
+            FunctionTool(prompt_moderator_tool),
             FunctionTool(response_moderator_tool),
             FunctionTool(hallucination_tool_with_metric)
         ],
@@ -132,5 +132,5 @@ def chat():
 
 if __name__ == "__main__":
     logger.info("Iniciando a aplicação Flask com arquitetura de agentes ADK.")
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=8000)
 
