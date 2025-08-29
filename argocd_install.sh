@@ -10,6 +10,7 @@ usage() {
   cat <<EOF
 Uso:
   $0 -i        # Instala o ArgoCD (usa seu snippet base)
+  $0 -p        # Mostra a senha do admin do ArgoCD
   $0 -u        # Desinstala o ArgoCD (remove recursos e o namespace)
   $0 -r        # Desinstala e instala novamente
 EOF
