@@ -5,7 +5,7 @@ from prometheus_flask_exporter import PrometheusMetrics
 from prometheus_client import Counter
 import google.generativeai as genai
 from google.adk.tools import FunctionTool
-from google.adk.agents import Agent 
+from google.adk.agents import LlmAgent 
 
 from src.agents.moderator_tool import ModeratorTool
 from src.agents.hallucination_validator_tool import HallucinationValidatorTool
@@ -85,8 +85,9 @@ Siga este fluxo de trabalho para CADA pergunta:
 
 # --- Criação do Agente Principal ---
 try:
-    main_agent = Agent(
-        prompt=AGENT_PROMPT,
+    main_agent = LlmAgent(
+        name="main_agent",
+        instruction=AGENT_PROMPT,
         tools=[
             FunctionTool(prompt_moderator_tool),
             FunctionTool(response_moderator_tool),
