@@ -119,7 +119,7 @@ def chat():
         return jsonify({"error": "O campo 'prompt' é obrigatório"}), 400
 
     try:
-        response_text = main_agent.send(prompt)
+        response_text = main_agent.run(prompt)
         
         if response_text.startswith("ERRO:"):
             logger.warning(f"Agente ADK bloqueou a solicitação: {response_text}")
