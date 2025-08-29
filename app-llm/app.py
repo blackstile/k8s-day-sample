@@ -28,6 +28,9 @@ VALIDATION_EVENTS_TOTAL = Counter(
     ['validation_type']
 )
 
+logging.info(f"**** ROOT CONTEXT: {os.environ.get('APP_ROOT_CONTEXT')}")
+root_path = os.environ.get('APP_ROOT_CONTEXT')
+
 # --- Configuração da API do Gemini ---
 try:
     api_key = os.environ.get("GEMINI_API_KEY")
