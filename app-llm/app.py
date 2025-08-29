@@ -6,6 +6,9 @@ from prometheus_client import Counter
 import google.generativeai as genai
 from google.adk.tools import FunctionTool
 from google.adk.agents import LlmAgent 
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai import types
 
 from src.agents.moderator_tool import ModeratorTool
 from src.agents.hallucination_validator_tool import HallucinationValidatorTool
@@ -83,6 +86,10 @@ Siga este fluxo de trabalho para CADA pergunta:
 5.  Se a sua resposta passar por TODAS as verificações, e somente neste caso, entregue a resposta final ao usuário.
 """
 
+APP_NAME = "k8s_day_app"
+USER_ID = "1980"
+SESSION_ID = "session1980"
+
 # --- Criação do Agente Principal ---
 try:
     main_agent = LlmAgent(
@@ -96,10 +103,30 @@ try:
         model='gemini-1.5-pro-latest'
     )
     logger.info("Agente ADK inicializado com ferramentas com métricas.")
+    session_service = InMemorySessionService()
+    session = session_service.create_session(app_name=APP_NAME, user_id=USER_ID, session_id=SESSION_ID)
+    runner = Runner(agent=main_agent, app_name=APP_NAME, session_service=session_service)
+
 except Exception as e:
     logger.critical(f"Falha ao criar o Agente ADK: {e}")
     print(f"Falha ao criar o Agente ADK: {e}")
     main_agent = None
+
+
+
+def call_agent(query):
+    """
+    Helper function to call the agent with a query.
+    """
+    content = types.Content(role="user", parts=[types.Part(text=query)])
+    events = runner.run(user_id=USER_ID, session_id=SESSION_ID, new_message=content)
+
+    for event in events:
+        if event.is_final_response():
+            final_response = event.content.parts[0].text
+            print("Agent Response: ", final_response) 
+    return final_response;
+
 
 @app.route("/")
 def home():
@@ -119,7 +146,8 @@ def chat():
         return jsonify({"error": "O campo 'prompt' é obrigatório"}), 400
 
     try:
-        response_text = main_agent.run(prompt)
+
+        response_text = call_agent(prompt)
         
         if response_text.startswith("ERRO:"):
             logger.warning(f"Agente ADK bloqueou a solicitação: {response_text}")

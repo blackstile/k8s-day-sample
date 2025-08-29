@@ -80,6 +80,13 @@ install_sealed(){
     kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.31.0/controller.yaml
 }
 
+install_jaeger(){
+    echo "# Instalando Jaeger Operator"
+    kubectl create -f https://github.com/jaegertracing/jaeger-operator/releases/download/v1.54.0/jaeger-operator.yaml
+
+}
+
+
 ./kind_install.sh
 create_cluster;
 install_metrics_server;
