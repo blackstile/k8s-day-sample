@@ -18,7 +18,7 @@ def wrap_tool_with_metric(tool_function, counter, labels: dict):
     """
     sig = inspect.signature(tool_function)
     tool_params = sig.parameters
-    
+
     @wraps(tool_function)
     def metric_wrapper(*args, **kwargs):
         
@@ -30,7 +30,7 @@ def wrap_tool_with_metric(tool_function, counter, labels: dict):
             kwargs['validation_type'] = labels.get('validation_type', 'unknown')
 
 
-        result = tool_function(*args, validation_type=validation_type, **kwargs)
+        result = tool_function(*args, **kwargs)
 
     
         return result
