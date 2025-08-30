@@ -30,7 +30,7 @@ spec:
     targetPort: 16686
   selector:
     app: jaeger
-  type: NodePort 
+  type: ClusterIP
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -53,13 +53,11 @@ spec:
       - name: jaeger
         image: jaegertracing/all-in-one:1.53
         ports:
-        - containerPort: 4317  # OTLP gRPC
-        - containerPort: 16686 # UI
+        - containerPort: 4317
+        - containerPort: 16686
         env:
         - name: COLLECTOR_OTLP_ENABLED
           value: "true"
-        # Esta variável informa à UI do Jaeger que ela está sendo servida sob /jaeger
-        # Isso corrige links internos, CSS, JS, etc.
         - name: QUERY_BASE_PATH
           value: /jaeger
 ---
@@ -69,13 +67,13 @@ metadata:
   name: jaeger-ingress
   namespace: monitoring-dev
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
   - http:
       paths:
-      - path: /jaeger
+      - path: /jaeger(/|$)(.*)
         pathType: Prefix
         backend:
           service:
