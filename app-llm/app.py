@@ -28,6 +28,16 @@ from src.agents.moderator_tool import ModeratorTool
 from src.agents.hallucination_validator_tool import HallucinationValidatorTool
 from src.metrics_wrapper import wrap_tool_with_metric
 
+from src.metrics import (
+    REQUESTS_TOTAL,
+    VALIDATION_EVENTS_TOTAL,
+    LLM_API_LATENCY,
+    LLM_PROMPT_TOKENS_TOTAL,
+    LLM_RESPONSE_TOKENS_TOTAL,
+    LLM_API_ERRORS_TOTAL
+)
+
+
 # --- Configuração do Logger, Flask, etc. ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
@@ -62,39 +72,6 @@ app = Flask(__name__)
 FlaskInstrumentor().instrument_app(app)
 
 metrics = PrometheusMetrics(app, group_by='endpoint')
-
-# --- Métricas Prometheus Originais ---
-REQUESTS_TOTAL = Counter(
-    'app_requests_total',
-    'Total de requisições recebidas no endpoint /chat'
-)
-VALIDATION_EVENTS_TOTAL = Counter(
-    'app_validation_events_total',
-    'Total de eventos de validação executados pelos agentes',
-    ['validation_type']
-)
-
-# --- Novas Métricas Prometheus para LLM ---
-LLM_API_LATENCY = Histogram(
-    'llm_api_latency_seconds',
-    'Latência das chamadas à API do LLM',
-    ['model_name']
-)
-LLM_PROMPT_TOKENS_TOTAL = Counter(
-    'llm_prompt_tokens_total',
-    'Total de tokens enviados nos prompts para o LLM',
-    ['model_name']
-)
-LLM_RESPONSE_TOKENS_TOTAL = Counter(
-    'llm_response_tokens_total',
-    'Total de tokens recebidos nas respostas do LLM',
-    ['model_name']
-)
-LLM_API_ERRORS_TOTAL = Counter(
-    'llm_api_errors_total',
-    'Total de erros durante chamadas à API do LLM',
-    ['model_name']
-)
 
 logging.info(f"**** ROOT CONTEXT: {os.environ.get('APP_ROOT_CONTEXT')}")
 root_path = os.environ.get('APP_ROOT_CONTEXT') or ""
@@ -284,4 +261,4 @@ def chat():
 
 if __name__ == "__main__":
     logger.info("Iniciando a aplicação Flask com arquitetura de agentes ADK.")
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=9000)

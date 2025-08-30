@@ -1,10 +1,19 @@
 import json
 import logging
+import time
 import google.generativeai as genai
-from opentelemetry import trace # Importe o trace
+from opentelemetry import trace 
+
+from src.metrics import (
+    LLM_API_LATENCY,
+    LLM_PROMPT_TOKENS_TOTAL,
+    LLM_RESPONSE_TOKENS_TOTAL,
+    LLM_API_ERRORS_TOTAL
+)
+
 
 logger = logging.getLogger(__name__)
-tracer = trace.get_tracer(__name__) # Obtenha um tracer
+tracer = trace.get_tracer(__name__) 
 
 class HallucinationValidatorTool:
     @staticmethod
@@ -22,7 +31,8 @@ class HallucinationValidatorTool:
         
         logger.info("ADK Tool: Executando ferramenta de validação de alucinação.")
         
-        model = genai.GenerativeModel('gemini-1.5-pro-latest')
+        model_name = 'gemini-1.5-pro-latest'
+        model = genai.GenerativeModel(model_name) 
         generation_config = genai.types.GenerationConfig(response_mime_type="application/json")
         prompt = f"""
         Você é um agente de verificação de fatos. Analise o par abaixo. Uma 'alucinação' ocorre se a resposta for inventada, incoerente ou não responder à pergunta original.
@@ -30,8 +40,14 @@ class HallucinationValidatorTool:
         RESPOSTA GERADA: "{response_text}"
         A resposta gerada é uma alucinação? Responda APENAS com um objeto JSON válido contendo uma única chave "is_hallucination" e o valor booleano correspondente.
         """
+        start_time = time.monotonic()
         try:
             response = model.generate_content(prompt, generation_config=generation_config)
+            if hasattr(response, 'usage_metadata'): # <--- Adicionado
+                usage = response.usage_metadata
+                LLM_PROMPT_TOKENS_TOTAL.labels(model_name=model_name).inc(usage.prompt_token_count)
+                LLM_RESPONSE_TOKENS_TOTAL.labels(model_name=model_name).inc(usage.candidates_token_count)
+
             is_hallucination = json.loads(response.text).get("is_hallucination", False)
             if is_hallucination:
                 logger.info(f"Alucinação gerada: {response_text}")
@@ -39,4 +55,9 @@ class HallucinationValidatorTool:
             return is_hallucination
         except Exception as e:
             logger.error(f"Erro na ferramenta de validação de alucinação: {e}. Bloqueando por segurança.")
+            LLM_API_ERRORS_TOTAL.labels(model_name=model_name).inc()
             return True
+        finally:
+            latency = time.monotonic() - start_time 
+            LLM_API_LATENCY.labels(model_name=model_name).observe(latency)
+
