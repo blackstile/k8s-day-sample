@@ -1,5 +1,6 @@
 import os
 import logging
+import asyncio
 from flask import Flask, request, jsonify, render_template
 from prometheus_flask_exporter import PrometheusMetrics
 from prometheus_client import Counter
@@ -150,7 +151,7 @@ def chat():
 
     try:
 
-        response_text = call_agent(prompt)
+        response_text = asyncio.run(call_agent(prompt))
         
         if response_text.startswith("ERRO:"):
             logger.warning(f"Agente ADK bloqueou a solicitação: {response_text}")
