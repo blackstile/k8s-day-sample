@@ -1,6 +1,11 @@
 Flask==3.0.0
-google-generativeai==0.5.4
+google-generativeai
 prometheus-flask-exporter==0.23.0 
 pytest
-google-adk
+google-adk==0.1.0
 deprecated
+opentelemetry-api==1.31.0
+opentelemetry-sdk==1.31.0
+opentelemetry-exporter-otlp==1.31.0
+opentelemetry-instrumentation-flask==0.52b0
+protobuf>=5.0

@@ -1,11 +1,14 @@
 import json
 import logging
 import google.generativeai as genai
+from opentelemetry import trace # Importe o trace
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__) # Obtenha um tracer
 
 class HallucinationValidatorTool:
     @staticmethod
+    @tracer.start_as_current_span("hallucination_validator.validate")
     def validate(original_prompt: str, response_text: str) -> bool:
         """
         Compara a resposta com a pergunta para detectar alucinações. Retorna 'true' se for uma alucinação.
@@ -13,6 +16,10 @@ class HallucinationValidatorTool:
             original_prompt: A pergunta feita pelo usuário.
             response_text: A resposta gerada pela IA.
         """
+        current_span = trace.get_current_span()
+        current_span.set_attribute("app.prompt_length", len(original_prompt))
+        current_span.set_attribute("app.response_length", len(response_text))
+        
         logger.info("ADK Tool: Executando ferramenta de validação de alucinação.")
         
         model = genai.GenerativeModel('gemini-1.5-pro-latest')
@@ -28,6 +35,7 @@ class HallucinationValidatorTool:
             is_hallucination = json.loads(response.text).get("is_hallucination", False)
             if is_hallucination:
                 logger.info(f"Alucinação gerada: {response_text}")
+            current_span.set_attribute("app.is_hallucination", is_hallucination)
             return is_hallucination
         except Exception as e:
             logger.error(f"Erro na ferramenta de validação de alucinação: {e}. Bloqueando por segurança.")

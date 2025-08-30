@@ -17,14 +17,14 @@ def wrap_tool_with_metric(tool_function, counter, labels: dict):
     """
     @wraps(tool_function)
     def metric_wrapper(*args, **kwargs):
-        # Passo 1: Incrementar a métrica com as labels corretas
+        
         logger.info(f"Métrica registrada para o contador com labels: {labels}")
         counter.labels(**labels).inc()
+        validation_type = labels.get('validation_type', 'unknown')
+        
+        result = tool_function(*args, validation_type=validation_type, **kwargs)
 
-        # Passo 2: Executar a função da ferramenta original com seus argumentos
-        result = tool_function(*args, **kwargs)
-
-        # Passo 3: Retornar o resultado original
+    
         return result
 
     return metric_wrapper

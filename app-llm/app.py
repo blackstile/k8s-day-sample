@@ -1,15 +1,28 @@
 import os
 import logging
 import asyncio
+import time
+from functools import wraps
 from flask import Flask, request, jsonify, render_template
 from prometheus_flask_exporter import PrometheusMetrics
-from prometheus_client import Counter
+from prometheus_client import Counter, Histogram
 import google.generativeai as genai
 from google.adk.tools import FunctionTool
 from google.adk.agents import LlmAgent 
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
+
+
+# --- Configuração do OpenTelemetry ---
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+
+# --- Instrumentação Automática ---
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
 
 from src.agents.moderator_tool import ModeratorTool
 from src.agents.hallucination_validator_tool import HallucinationValidatorTool
@@ -18,10 +31,39 @@ from src.metrics_wrapper import wrap_tool_with_metric
 # --- Configuração do Logger, Flask, etc. ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
+
+
+# --- Nome do Serviço para o OpenTelemetry ---
+# É crucial para identificar sua aplicação no Jaeger.
+APP_NAME_FOR_TRACING = "llm-agent-service"
+
+# --- Configuração do OpenTelemetry Provider ---
+resource = Resource(attributes={"service.name": APP_NAME_FOR_TRACING})
+provider = TracerProvider(resource=resource)
+
+# Configura o exportador para enviar traces para o Jaeger via OTLP
+# O endpoint deve apontar para o serviço do coletor no Kubernetes
+# Usamos uma variável de ambiente para flexibilidade
+otlp_exporter = OTLPSpanExporter(
+    endpoint=os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger-collector:4317"),
+    insecure=True # Necessário para comunicação http local sem TLS
+)
+processor = BatchSpanProcessor(otlp_exporter)
+provider.add_span_processor(processor)
+
+trace.set_tracer_provider(provider)
+tracer = trace.get_tracer(__name__)
+
+
 app = Flask(__name__)
+
+# --- Instrumentação Automática do Flask ---
+# Isso cria automaticamente um span para cada requisição recebida pelo Flask
+FlaskInstrumentor().instrument_app(app)
+
 metrics = PrometheusMetrics(app, group_by='endpoint')
 
-# --- Métricas Prometheus ---
+# --- Métricas Prometheus Originais ---
 REQUESTS_TOTAL = Counter(
     'app_requests_total',
     'Total de requisições recebidas no endpoint /chat'
@@ -30,6 +72,28 @@ VALIDATION_EVENTS_TOTAL = Counter(
     'app_validation_events_total',
     'Total de eventos de validação executados pelos agentes',
     ['validation_type']
+)
+
+# --- Novas Métricas Prometheus para LLM ---
+LLM_API_LATENCY = Histogram(
+    'llm_api_latency_seconds',
+    'Latência das chamadas à API do LLM',
+    ['model_name']
+)
+LLM_PROMPT_TOKENS_TOTAL = Counter(
+    'llm_prompt_tokens_total',
+    'Total de tokens enviados nos prompts para o LLM',
+    ['model_name']
+)
+LLM_RESPONSE_TOKENS_TOTAL = Counter(
+    'llm_response_tokens_total',
+    'Total de tokens recebidos nas respostas do LLM',
+    ['model_name']
+)
+LLM_API_ERRORS_TOTAL = Counter(
+    'llm_api_errors_total',
+    'Total de erros durante chamadas à API do LLM',
+    ['model_name']
 )
 
 logging.info(f"**** ROOT CONTEXT: {os.environ.get('APP_ROOT_CONTEXT')}")
@@ -44,6 +108,50 @@ try:
     logger.info("API Key do Gemini configurada com sucesso.")
 except Exception as e:
     logger.critical(f"Falha ao inicializar o Gemini: {e}")
+
+# --- Wrapper para instrumentação da API do Gemini ---
+def instrument_generate_content(original_function):
+    """
+    Wrapper que instrumenta a função `generate_content` para coletar métricas.
+    """
+    @wraps(original_function)
+    def wrapper(*args, **kwargs):
+        # O primeiro argumento de 'generate_content' é o próprio objeto do modelo ('self')
+        model_name = args[0].model_name if args else 'unknown'
+        start_time = time.monotonic()
+        
+        try:
+            # Executa a chamada original à API
+            response = original_function(*args, **kwargs)
+            
+            # Coleta métricas de uso de token da resposta
+            if response and hasattr(response, 'usage_metadata'):
+                usage = response.usage_metadata
+                LLM_PROMPT_TOKENS_TOTAL.labels(model_name=model_name).inc(usage.prompt_token_count)
+                LLM_RESPONSE_TOKENS_TOTAL.labels(model_name=model_name).inc(usage.candidates_token_count)
+                logger.info(f"Tokens: {usage.prompt_token_count} (prompt), {usage.candidates_token_count} (response) para {model_name}")
+
+            return response
+            
+        except Exception as e:
+            # Incrementa o contador de erros
+            LLM_API_ERRORS_TOTAL.labels(model_name=model_name).inc()
+            logger.error(f"Erro na API do Gemini para o modelo {model_name}: {e}")
+            raise # Re-lança a exceção para não quebrar o fluxo do programa
+            
+        finally:
+            # Registra a latência, ocorrendo sucesso ou falha
+            latency = time.monotonic() - start_time
+            LLM_API_LATENCY.labels(model_name=model_name).observe(latency)
+            logger.info(f"Latência da API para {model_name}: {latency:.4f} segundos")
+
+    return wrapper
+
+# --- Monkey-patching: Substitui a função original pela nossa versão instrumentada ---
+# Isso garante que TODAS as chamadas para 'generate_content' sejam monitoradas
+genai.GenerativeModel.generate_content = instrument_generate_content(genai.GenerativeModel.generate_content)
+logger.info("A função 'generate_content' do Gemini foi instrumentada para coletar métricas.")
+
 
 # --- Envolvendo as Ferramentas com as Métricas ---
 prompt_moderator_tool = wrap_tool_with_metric(
@@ -69,6 +177,7 @@ hallucination_tool_with_metric = wrap_tool_with_metric(
 )
 hallucination_tool_with_metric.__name__ = "hallucination_validator"
 hallucination_tool_with_metric.__doc__ = "Use esta ferramenta para verificar se uma resposta é uma alucinação. Retorna 'true' se for uma alucinação."
+
 
 # --- Prompt do Agente ADK ---
 AGENT_PROMPT = """
@@ -108,28 +217,37 @@ try:
 
 except Exception as e:
     logger.critical(f"Falha ao criar o Agente ADK: {e}")
-    print(f"Falha ao criar o Agente ADK: {e}")
     main_agent = None
 
 
-
+@tracer.start_as_current_span("call_agent_flow")
 async def call_agent(query):
     """
     Helper function to call the agent with a query.
     """
+
+    current_span = trace.get_current_span()
+    current_span.set_attribute("app.query", query)
+
     session_service = InMemorySessionService()
-    await session_service.create_session(app_name=APP_NAME, user_id=USER_ID, session_id=SESSION_ID)
+    session_service.create_session(app_name=APP_NAME, user_id=USER_ID, session_id=SESSION_ID)
     runner = Runner(agent=main_agent, app_name=APP_NAME, session_service=session_service)
     
     content = types.Content(role="user", parts=[types.Part(text=query)])
-    events = runner.run(user_id=USER_ID, session_id=SESSION_ID, new_message=content)
     
+    #events = runner.run(user_id=USER_ID, session_id=SESSION_ID, new_message=content)
+    
+    with tracer.start_as_current_span("adk.runner.run") as runner_span:
+      events = runner.run(user_id=USER_ID, session_id=SESSION_ID, new_message=content)
+    
+
     final_response = ""
     for event in events:
 
         if event.is_final_response():
             final_response = event.content.parts[0].text
             print("Agent Response: ", final_response) 
+    current_span.set_attribute("app.final_response", final_response)
     return final_response;
 
 
@@ -167,4 +285,3 @@ def chat():
 if __name__ == "__main__":
     logger.info("Iniciando a aplicação Flask com arquitetura de agentes ADK.")
     app.run(host="0.0.0.0", port=5000)
-
