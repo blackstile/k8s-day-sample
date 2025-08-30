@@ -45,7 +45,7 @@ provider = TracerProvider(resource=resource)
 # O endpoint deve apontar para o serviço do coletor no Kubernetes
 # Usamos uma variável de ambiente para flexibilidade
 otlp_exporter = OTLPSpanExporter(
-    endpoint=os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger-collector:4317"),
+    endpoint=os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger-collector.monitoring-dev.svc.cluster.local:4317"),
     insecure=True # Necessário para comunicação http local sem TLS
 )
 processor = BatchSpanProcessor(otlp_exporter)
