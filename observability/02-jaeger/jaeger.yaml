@@ -81,7 +81,7 @@ spec:
   - http:
       paths:
       - path: /jaeger(/|$)(.*)
-        pathType: ImplementationSpecific
+        pathType: Prefix
         backend:
           service:
             name: jaeger-query
