@@ -122,9 +122,10 @@ async def call_agent(query):
     runner = Runner(agent=main_agent, app_name=APP_NAME, session_service=session_service)
     
     content = types.Content(role="user", parts=[types.Part(text=query)])
+    events = runner.run(user_id=USER_ID, session_id=SESSION_ID, new_message=content)
     
     final_response = ""
-    async for event in runner.run(user_id=USER_ID, session_id=SESSION_ID, new_message=content):
+    for event in events:
 
         if event.is_final_response():
             final_response = event.content.parts[0].text
