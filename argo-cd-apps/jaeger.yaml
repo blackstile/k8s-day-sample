@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/blackstile/k8s-day-sample.git
-    targetRevision: master
+    targetRevision: feature/v3
     path: observability/02-jaeger # Pasta pai que contém as subpastas do Prometheus e Grafana
   destination:
     server: https://kubernetes.default.svc
