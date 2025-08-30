@@ -65,21 +65,20 @@ spec:
         - name: QUERY_BASE_PATH
           value: /jaeger
 ---
-# O recurso de Ingress que expõe a UI do Jaeger no path /jaeger
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: jaeger-ingress
+  namespace: monitoring-dev
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
-
   ingressClassName: nginx
   rules:
   - http:
       paths:
-      - path: /jaeger(/|$)(.*) 
-        pathType: Prefix
+      - path: /jaeger(/|$)(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: jaeger-query
