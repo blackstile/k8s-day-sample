@@ -1,0 +1,90 @@
+# jaeger-k8s-ingress.yaml
+
+# O serviço do coletor continua o mesmo, recebendo traces internamente
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-collector
+  labels:
+    app: jaeger
+spec:
+  ports:
+  - name: grpc-otlp
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  selector:
+    app: jaeger
+  type: ClusterIP
+---
+# O serviço da UI agora é ClusterIP, pois o Ingress cuidará do acesso externo
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-query
+  labels:
+    app: jaeger
+spec:
+  ports:
+  - name: query-http
+    port: 16686
+    protocol: TCP
+    targetPort: 16686
+  selector:
+    app: jaeger
+  type: ClusterIP # Alterado de NodePort para ClusterIP
+---
+# O Deployment do Jaeger, agora com a variável de ambiente para o base path
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+  labels:
+    app: jaeger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger
+  template:
+    metadata:
+      labels:
+        app: jaeger
+    spec:
+      containers:
+      - name: jaeger
+        image: jaegertracing/all-in-one:1.53
+        ports:
+        - containerPort: 4317  # OTLP gRPC
+        - containerPort: 16686 # UI
+        env:
+        - name: COLLECTOR_OTLP_ENABLED
+          value: "true"
+        # Esta variável informa à UI do Jaeger que ela está sendo servida sob /jaeger
+        # Isso corrige links internos, CSS, JS, etc.
+        - name: QUERY_BASE_PATH
+          value: /jaeger
+---
+# O recurso de Ingress que expõe a UI do Jaeger no path /jaeger
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jaeger-ingress
+  annotations:
+    # Esta anotação é crucial!
+    # Ela reescreve a URL antes de enviá-la ao pod do Jaeger.
+    # Ex: a requisição para /jaeger/search é enviada para o pod como /search
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  # É importante especificar a classe do Ingress, especialmente no Kind
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /jaeger(/|$)(.*) # Corresponde a /jaeger, /jaeger/ e /jaeger/qualquer/coisa
+        pathType: Prefix
+        backend:
+          service:
+            name: jaeger-query # Aponta para o serviço da UI do Jaeger
+            port:
+              number: 16686 # Na porta 16686
