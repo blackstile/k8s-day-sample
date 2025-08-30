@@ -1,6 +1,3 @@
-# jaeger-k8s-ingress.yaml
-
-# O serviço do coletor continua o mesmo, recebendo traces internamente
 apiVersion: v1
 kind: Service
 metadata:
@@ -18,7 +15,6 @@ spec:
     app: jaeger
   type: ClusterIP
 ---
-# O serviço da UI agora é ClusterIP, pois o Ingress cuidará do acesso externo
 apiVersion: v1
 kind: Service
 metadata:
@@ -34,9 +30,8 @@ spec:
     targetPort: 16686
   selector:
     app: jaeger
-  type: ClusterIP # Alterado de NodePort para ClusterIP
+  type: NodePort 
 ---
-# O Deployment do Jaeger, agora com a variável de ambiente para o base path
 apiVersion: apps/v1
 kind: Deployment
 metadata:
