@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - feature/v2
+      - feature/v3
     paths:
       - 'app-llm/**'
   workflow_dispatch:

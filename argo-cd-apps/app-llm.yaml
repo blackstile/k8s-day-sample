@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/blackstile/k8s-day-sample.git
-    targetRevision: feature/v2
+    targetRevision: feature/v3
     path: app-llm/k8s # Pasta com os manifestos da sua aplicação
   destination:
     server: https://kubernetes.default.svc

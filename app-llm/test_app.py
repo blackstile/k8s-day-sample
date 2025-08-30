@@ -25,7 +25,7 @@ class TestAgentTools(unittest.TestCase):
         mock_model_instance.generate_content.return_value = mock_response
 
         # Agora, chame a ferramenta. Ela usará nosso modelo falso em vez do real.
-        result = ModeratorTool.validate("este é um texto ofensivo")
+        result = ModeratorTool.validate("este é um texto ofensivo", "prompt_moderation")
 
         # Verifique se a ferramenta retornou o resultado esperado
         self.assertTrue(result, "A ferramenta deveria retornar True para conteúdo inapropriado")
@@ -44,7 +44,7 @@ class TestAgentTools(unittest.TestCase):
         mock_model_instance = MockGenerativeModel.return_value
         mock_model_instance.generate_content.return_value = mock_response
 
-        result = ModeratorTool.validate("este é um texto normal")
+        result = ModeratorTool.validate("este é um texto normal", "prompt_moderation")
 
         self.assertFalse(result, "A ferramenta deveria retornar False para conteúdo apropriado")
         mock_model_instance.generate_content.assert_called_once()
