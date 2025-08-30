@@ -71,20 +71,17 @@ kind: Ingress
 metadata:
   name: jaeger-ingress
   annotations:
-    # Esta anotação é crucial!
-    # Ela reescreve a URL antes de enviá-la ao pod do Jaeger.
-    # Ex: a requisição para /jaeger/search é enviada para o pod como /search
     nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
-  # É importante especificar a classe do Ingress, especialmente no Kind
+
   ingressClassName: nginx
   rules:
   - http:
       paths:
-      - path: /jaeger(/|$)(.*) # Corresponde a /jaeger, /jaeger/ e /jaeger/qualquer/coisa
+      - path: /jaeger(/|$)(.*) 
         pathType: Prefix
         backend:
           service:
-            name: jaeger-query # Aponta para o serviço da UI do Jaeger
+            name: jaeger-query
             port:
-              number: 16686 # Na porta 16686
+              number: 16686
