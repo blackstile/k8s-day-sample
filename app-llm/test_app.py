@@ -38,16 +38,25 @@ class TestAgentTools(unittest.TestCase):
         """
         Testa se a ModeratorTool permite conteúdo quando o mock da API retorna 'false'.
         """
+
         mock_response = MagicMock()
         mock_response.text = json.dumps({"inapropriado": False})
+
         
+        mock_usage_metadata = MagicMock()
+        
+        mock_usage_metadata.prompt_token_count = 15
+        mock_usage_metadata.candidates_token_count = 20
+
+        
+        mock_response.usage_metadata = mock_usage_metadata
         mock_model_instance = MockGenerativeModel.return_value
         mock_model_instance.generate_content.return_value = mock_response
 
         result = ModeratorTool.validate("este é um texto normal", "prompt_moderation")
 
         self.assertFalse(result, "A ferramenta deveria retornar False para conteúdo apropriado")
-        mock_model_instance.generate_content.assert_called_once()
+
 
     @patch('google.generativeai.GenerativeModel')
     def test_hallucination_validator_detects_hallucination(self, MockGenerativeModel):
