@@ -26,6 +26,8 @@ class HallucinationValidatorTool:
         try:
             response = model.generate_content(prompt, generation_config=generation_config)
             is_hallucination = json.loads(response.text).get("is_hallucination", False)
+            if is_hallucination:
+                logger.info(f"Alucinação gerada: {response_text}")
             return is_hallucination
         except Exception as e:
             logger.error(f"Erro na ferramenta de validação de alucinação: {e}. Bloqueando por segurança.")
