@@ -27,7 +27,7 @@ class ModeratorTool:
         """
         logger.info(f"ModeratorTools validation_type={validation_type}")
         start_time = time.monotonic()
-        logger.info(f"ADK Tool: Executando ferramenta de moderação de conteúdo.")
+        logger.info(f"ADK Tool: Executando ferramenta de moderação de conteúdo. validation_type={validation_type}")
         current_span = trace.get_current_span()
         current_span.set_attribute("app.validation.type", validation_type)
         current_span.set_attribute("app.validation.text", text_to_validate)

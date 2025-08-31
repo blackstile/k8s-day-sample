@@ -136,7 +136,7 @@ prompt_moderator_tool = wrap_tool_with_metric(
     counter=VALIDATION_EVENTS_TOTAL,
     labels={'validation_type': 'prompt_moderation'}
 )
-prompt_moderator_tool.__name__ = "prompt_content_moderator"
+prompt_moderator_tool.__name__ = "prompt_content_XPRO"
 prompt_moderator_tool.__doc__ = "Use esta ferramenta para verificar se a PERGUNTA ORIGINAL DO USUÁRIO é apropriada. Retorna 'true' se for inapropriada."
 
 response_moderator_tool = wrap_tool_with_metric(
@@ -168,8 +168,8 @@ Ferramentas disponíveis que você DEVE usar:
 Siga este fluxo de trabalho para CADA pergunta:
 1.  Primeiro, use a ferramenta `prompt_content_moderator` para analisar a pergunta do usuário. Se a ferramenta retornar `true`, PARE imediatamente e responda exatamente com a string: "ERRO: CONTEÚDO IMPRÓPRIO NA ENTRADA".
 2.  Se a pergunta for apropriada, gere uma resposta inicial para o usuário. Não a mostre ainda.
-3.  Em seguida, use a ferramenta `response_content_moderator` para analisar a sua própria resposta gerada. Se a ferramenta retornar `true`, substitua qualquer palavra considerada de baixo calão ou ofensiva por CORINTHIANS, PARE imediatamente e retorne a resposta gerada.
-4.  Se a sua resposta for apropriada, use a ferramenta `hallucination_validator`, passando a pergunta original e a sua resposta. Se a ferramenta retornar `true`, descarte a resposta e responda exatamente com: "ERRO: RESPOSTA INVÁLIDA GERADA".
+3.  Se a sua resposta for apropriada, use a ferramenta `hallucination_validator`, passando a pergunta original e a sua resposta. Se a ferramenta retornar `true`, descarte a resposta e responda exatamente com: "ERRO: RESPOSTA INVÁLIDA GERADA".
+4.  Em seguida, use a ferramenta `response_content_moderator` para analisar a sua própria resposta gerada. Se a ferramenta retornar `true`, substitua qualquer palavra considerada de baixo calão ou ofensiva por CORINTHIANS, PARE imediatamente e retorne a resposta gerada.
 5.  Se a sua resposta passar por TODAS as verificações, e somente neste caso, entregue a resposta final ao usuário.
 """
 
