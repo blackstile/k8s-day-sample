@@ -21,14 +21,11 @@ def wrap_tool_with_metric(tool_function, counter, labels: dict):
 
     @wraps(tool_function)
     def metric_wrapper(*args, **kwargs):
-        
         logger.info(f"Métrica registrada para o contador com labels: {labels}")
         counter.labels(**labels).inc()
-        validation_type = labels.get('validation_type', 'unknown')
         
         if 'validation_type' in tool_params:
             kwargs['validation_type'] = labels.get('validation_type', 'unknown')
-
 
         result = tool_function(*args, **kwargs)
 

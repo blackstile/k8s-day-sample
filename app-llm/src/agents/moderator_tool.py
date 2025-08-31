@@ -8,6 +8,7 @@ from src.metrics import (
     LLM_API_LATENCY,
     LLM_PROMPT_TOKENS_TOTAL,
     LLM_RESPONSE_TOKENS_TOTAL,
+    LLM_VALIDATION_BLOCKED_TOTAL,
     LLM_API_ERRORS_TOTAL
 )
 
@@ -46,6 +47,8 @@ class ModeratorTool:
                 LLM_RESPONSE_TOKENS_TOTAL.labels(model_name=model_name).inc(usage.candidates_token_count)
 
             is_inappropriate = json.loads(response.text).get("inapropriado", False)
+            if is_inappropriate: 
+                LLM_VALIDATION_BLOCKED_TOTAL.labels(model_name=model_name, validation_type=validation_type).inc()
             current_span.set_attribute("app.is_inappropriate", is_inappropriate)
             return is_inappropriate
         except Exception as e:

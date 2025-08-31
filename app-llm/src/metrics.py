@@ -27,6 +27,13 @@ LLM_RESPONSE_TOKENS_TOTAL = Counter(
     'Total de tokens recebidos nas respostas do LLM',
     ['model_name']
 )
+
+LLM_VALIDATION_BLOCKED_TOTAL = Counter(
+    'llm_validation_blocked_total',
+    'Total de eventos de validação que foram bloqueados por tipo',
+    ['model_name', 'validation_type']
+)
+
 LLM_API_ERRORS_TOTAL = Counter(
     'llm_api_errors_total',
     'Total de erros durante chamadas à API do LLM',

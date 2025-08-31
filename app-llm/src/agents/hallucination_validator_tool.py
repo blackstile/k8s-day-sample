@@ -8,6 +8,7 @@ from src.metrics import (
     LLM_API_LATENCY,
     LLM_PROMPT_TOKENS_TOTAL,
     LLM_RESPONSE_TOKENS_TOTAL,
+    LLM_VALIDATION_BLOCKED_TOTAL,
     LLM_API_ERRORS_TOTAL
 )
 
@@ -43,13 +44,14 @@ class HallucinationValidatorTool:
         start_time = time.monotonic()
         try:
             response = model.generate_content(prompt, generation_config=generation_config)
-            if hasattr(response, 'usage_metadata'): # <--- Adicionado
+            if hasattr(response, 'usage_metadata'):
                 usage = response.usage_metadata
                 LLM_PROMPT_TOKENS_TOTAL.labels(model_name=model_name).inc(usage.prompt_token_count)
                 LLM_RESPONSE_TOKENS_TOTAL.labels(model_name=model_name).inc(usage.candidates_token_count)
 
             is_hallucination = json.loads(response.text).get("is_hallucination", False)
             if is_hallucination:
+                LLM_VALIDATION_BLOCKED_TOTAL.labels(model_name=model_name, validation_type='hallucination_check').inc()
                 logger.info(f"Alucinação gerada: {response_text}")
             current_span.set_attribute("app.is_hallucination", is_hallucination)
             return is_hallucination
