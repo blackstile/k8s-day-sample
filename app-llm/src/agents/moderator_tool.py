@@ -25,6 +25,7 @@ class ModeratorTool:
         Args:
             text_to_validate: O texto que precisa ser validado.
         """
+        logger.info(f"ModeratorTools validation_type={validation_type}")
         start_time = time.monotonic()
         logger.info(f"ADK Tool: Executando ferramenta de moderação de conteúdo.")
         current_span = trace.get_current_span()
