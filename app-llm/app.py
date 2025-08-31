@@ -168,7 +168,7 @@ Ferramentas disponíveis que você DEVE usar:
 Siga este fluxo de trabalho para CADA pergunta:
 1.  Primeiro, use a ferramenta `prompt_content_moderator` para analisar a pergunta do usuário. Se a ferramenta retornar `true`, PARE imediatamente e responda exatamente com a string: "ERRO: CONTEÚDO IMPRÓPRIO NA ENTRADA".
 2.  Se a pergunta for apropriada, gere uma resposta inicial para o usuário. Não a mostre ainda.
-3.  Em seguida, use a ferramenta `response_content_moderator` para analisar a sua própria resposta gerada. Se a ferramenta retornar `true`, descarte a resposta e responda exatamente com: "ERRO: RESPOSTA IMPRÓPRIA GERADA".
+3.  Em seguida, use a ferramenta `response_content_moderator` para analisar a sua própria resposta gerada. Se a ferramenta retornar `true`, substitua qualquer palavra considerada de baixo calão ou ofensiva por CORINTHIANS
 4.  Se a sua resposta for apropriada, use a ferramenta `hallucination_validator`, passando a pergunta original e a sua resposta. Se a ferramenta retornar `true`, descarte a resposta e responda exatamente com: "ERRO: RESPOSTA INVÁLIDA GERADA".
 5.  Se a sua resposta passar por TODAS as verificações, e somente neste caso, entregue a resposta final ao usuário.
 """
@@ -220,11 +220,11 @@ async def call_agent(query):
 
     final_response = ""
     for event in events:
-
         if event.is_final_response():
             final_response = event.content.parts[0].text
             print("Agent Response: ", final_response) 
     current_span.set_attribute("app.final_response", final_response)
+    logger.info(f"****** Final Response: {final_response}")
     return final_response;
 
 
