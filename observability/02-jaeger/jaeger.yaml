@@ -74,7 +74,7 @@ spec:
   rules:
   - http:
       paths:
-      - path: /jaeger(/|$)(.*)
+      - path: /jaeger/(.*)
         pathType: ImplementationSpecific
         backend:
           service:
