@@ -86,22 +86,19 @@ try:
 except Exception as e:
     logger.critical(f"Falha ao inicializar o Gemini: {e}")
 
-# --- Wrapper para instrumentação da API do Gemini ---
+
 def instrument_generate_content(original_function):
     """
     Wrapper que instrumenta a função `generate_content` para coletar métricas.
     """
     @wraps(original_function)
     def wrapper(*args, **kwargs):
-        # O primeiro argumento de 'generate_content' é o próprio objeto do modelo ('self')
         model_name = args[0].model_name if args else 'unknown'
         start_time = time.monotonic()
         
         try:
-            # Executa a chamada original à API
             response = original_function(*args, **kwargs)
             
-            # Coleta métricas de uso de token da resposta
             if response and hasattr(response, 'usage_metadata'):
                 usage = response.usage_metadata
                 LLM_PROMPT_TOKENS_TOTAL.labels(model_name=model_name).inc(usage.prompt_token_count)
@@ -110,33 +107,54 @@ def instrument_generate_content(original_function):
 
             return response
             
-        except Exception as e:
-            # Incrementa o contador de erros
+        except Exception as e:            
             LLM_API_ERRORS_TOTAL.labels(model_name=model_name).inc()
             logger.error(f"Erro na API do Gemini para o modelo {model_name}: {e}")
             raise # Re-lança a exceção para não quebrar o fluxo do programa
             
         finally:
-            # Registra a latência, ocorrendo sucesso ou falha
             latency = time.monotonic() - start_time
             LLM_API_LATENCY.labels(model_name=model_name).observe(latency)
             logger.info(f"Latência da API para {model_name}: {latency:.4f} segundos")
 
     return wrapper
 
-# --- Monkey-patching: Substitui a função original pela nossa versão instrumentada ---
-# Isso garante que TODAS as chamadas para 'generate_content' sejam monitoradas
 genai.GenerativeModel.generate_content = instrument_generate_content(genai.GenerativeModel.generate_content)
 logger.info("A função 'generate_content' do Gemini foi instrumentada para coletar métricas.")
 
+def log_validation_step(validation_type_log: str, decision: str):
+    """
+    Use esta ferramenta para registrar a decisão tomada sobre uma etapa de validação.
+    validation_type_log: O tipo de validação sendo considerada (ex: 'prompt_moderation', 'response_moderation').
+    decision: A sua avaliação inicial (ex: 'parece_ok', 'necessita_verificacao_completa').
+    """
+    logger.info(f"Registro de decisão: {validation_type_log} - {decision}")
+    return f"Decisão '{decision}' registrada para {validation_type_log}."
 
 # --- Envolvendo as Ferramentas com as Métricas ---
+prompt_log_tool = wrap_tool_with_metric(
+    tool_function=lambda: log_validation_step('prompt_moderation', 'verificacao_iniciada'),
+    counter=VALIDATION_EVENTS_TOTAL,
+    labels={'validation_type': 'prompt_moderation'}
+)
+prompt_log_tool.__name__ = "registrar_verificacao_do_prompt"
+prompt_log_tool.__doc__ = "Use esta ferramenta PRIMEIRO para registrar que você está iniciando a análise de segurança da pergunta do usuário."
+
+response_log_tool = wrap_tool_with_metric(
+    tool_function=lambda: log_validation_step('response_moderation', 'verificacao_iniciada'),
+    counter=VALIDATION_EVENTS_TOTAL,
+    labels={'validation_type': 'response_moderation'}
+)
+response_log_tool.__name__ = "registrar_verificacao_da_resposta"
+response_log_tool.__doc__ = "Use esta ferramenta ANTES de verificar sua própria resposta, para registrar que você está iniciando a análise de segurança dela."
+
+
 prompt_moderator_tool = wrap_tool_with_metric(
     tool_function=ModeratorTool.validate,
     counter=VALIDATION_EVENTS_TOTAL,
     labels={'validation_type': 'prompt_moderation'}
 )
-prompt_moderator_tool.__name__ = "prompt_content_XPRO"
+prompt_moderator_tool.__name__ = "prompt_content_moderator"
 prompt_moderator_tool.__doc__ = "Use esta ferramenta para verificar se a PERGUNTA ORIGINAL DO USUÁRIO é apropriada. Retorna 'true' se for inapropriada."
 
 response_moderator_tool = wrap_tool_with_metric(
@@ -158,20 +176,32 @@ hallucination_tool_with_metric.__doc__ = "Use esta ferramenta para verificar se 
 
 # --- Prompt do Agente ADK ---
 AGENT_PROMPT = """
-Você é um assistente de IA seguro e prestativo. Seu trabalho é responder às perguntas do usuário, mas apenas se elas passarem por um rigoroso processo de validação.
+Você é um assistente de IA seguro e prestativo. Seu trabalho é seguir um processo rigoroso de validação para cada pergunta do usuário.
 
-Ferramentas disponíveis que você DEVE usar:
+Ferramentas disponíveis:
+- `registrar_verificacao_do_prompt`: Registra que a verificação de segurança da pergunta do usuário começou.
 - `prompt_content_moderator`: Verifica se a pergunta do usuário é ofensiva.
-- `response_content_moderator`: Verifica se a resposta que você está prestes a dar é ofensiva.
-- `hallucination_validator`: Verifica se a sua resposta é uma alucinação ou inconsistente com a pergunta.
+- `registrar_verificacao_da_resposta`: Registra que a verificação de segurança da sua resposta gerada começou.
+- `response_content_moderator`: Verifica se a sua resposta é ofensiva.
+- `hallucination_validator`: Verifica se a sua resposta é uma alucinação.
 
-Siga este fluxo de trabalho para CADA pergunta:
-1.  Primeiro, use a ferramenta `prompt_content_moderator` para analisar a pergunta do usuário. Se a ferramenta retornar `true`, PARE imediatamente e responda exatamente com a string: "ERRO: CONTEÚDO IMPRÓPRIO NA ENTRADA".
-2.  Se a pergunta for apropriada, gere uma resposta inicial para o usuário. Não a mostre ainda.
-3.  Se a sua resposta for apropriada, use a ferramenta `hallucination_validator`, passando a pergunta original e a sua resposta. Se a ferramenta retornar `true`, descarte a resposta e responda exatamente com: "ERRO: RESPOSTA INVÁLIDA GERADA".
-4.  Em seguida, use a ferramenta `response_content_moderator` para analisar a sua própria resposta gerada. Se a ferramenta retornar `true`, substitua qualquer palavra considerada de baixo calão ou ofensiva por CORINTHIANS, PARE imediatamente e retorne a resposta gerada.
-5.  Se a sua resposta passar por TODAS as verificações, e somente neste caso, entregue a resposta final ao usuário.
+Siga este fluxo de trabalho para CADA pergunta, sem exceções:
+
+1.  **Registro Obrigatório do Prompt:** Primeiro, SEMPRE use a ferramenta `registrar_verificacao_do_prompt` para registrar que a análise começou. Este passo é obrigatório.
+
+2.  **Análise do Prompt:** Em seguida, use a ferramenta `prompt_content_moderator` na pergunta original do usuário. Se ela retornar `true`, PARE imediatamente e responda exatamente com: "ERRO: CONTEÚDO IMPRÓPRIO NA ENTRADA".
+
+3.  **Geração da Resposta:** Se o prompt for apropriado, gere uma resposta inicial. Não a mostre ao usuário ainda.
+
+4.  **Registro Obrigatório da Resposta:** Antes de analisar sua resposta, SEMPRE use a ferramenta `registrar_verificacao_da_resposta`.
+
+5.  **Análise da Resposta:** Use `response_content_moderator` na sua resposta gerada. Se retornar `true`, substitua as palavras ofensivas por "CORINTHIANS" e entregue esta resposta modificada.
+
+6.  **Análise de Alucinação:** Se a resposta passar na verificação de conteúdo, use `hallucination_validator`. Se retornar `true`, descarte a resposta e retorne: "ERRO: RESPOSTA INVÁLIDA GERADA".
+
+7.  **Entrega Final:** Somente se a resposta passar em TODAS as verificações, entregue-a ao usuário.
 """
+
 
 APP_NAME = "k8s_day_app"
 USER_ID = "1980"
@@ -183,9 +213,12 @@ try:
         name="main_agent",
         instruction=AGENT_PROMPT,
         tools=[
+            FunctionTool(prompt_log_tool),
             FunctionTool(prompt_moderator_tool),
+            FunctionTool(response_log_tool),
             FunctionTool(response_moderator_tool),
             FunctionTool(hallucination_tool_with_metric)
+
         ],
         model='gemini-1.5-pro-latest'
     )
