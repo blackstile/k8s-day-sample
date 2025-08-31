@@ -49,6 +49,7 @@ class ModeratorTool:
 
             is_inappropriate = json.loads(response.text).get("inapropriado", False)
             if is_inappropriate: 
+                logger.info(f"validation_type={validation_type} - is_inappropriate={is_inappropriate}")
                 LLM_VALIDATION_BLOCKED_TOTAL.labels(model_name=model_name, validation_type=validation_type).inc()
             current_span.set_attribute("app.is_inappropriate", is_inappropriate)
             return is_inappropriate
