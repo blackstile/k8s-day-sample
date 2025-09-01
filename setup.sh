@@ -32,13 +32,15 @@ install_nginx_controller(){
 
 deploy_observability(){
 
-    echo "--> Excluindo deploy da stack de observabilidade (Prometheus e Grafana)..."
+    echo "--> Excluindo deploy da stack de observabilidade (Prometheus, Grafana e Jaeger)..."
     kubectl delete -f observability/00-prometheus/  --ignore-not-found=true
     kubectl delete -f observability/01-grafana/  --ignore-not-found=true
+    kubectl delete -f observability/02-jaeger/  --ignore-not-found=true
     
-    echo "--> Fazendo deploy da stack de observabilidade (Prometheus e Grafana)..."
+    echo "--> Fazendo deploy da stack de observabilidade (Prometheus, Grafana e Jaeger)..."
     kubectl apply -f observability/00-prometheus/
     kubectl apply -f observability/01-grafana/
+    kubectl apply -f observability/02-jaeger/
 
     kubectl wait --namespace monitoring-dev \
       --for=condition=ready pod \

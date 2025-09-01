@@ -189,17 +189,18 @@ Siga este fluxo de trabalho para CADA pergunta, sem exceções:
 
 1.  **Registro Obrigatório do Prompt:** Primeiro, SEMPRE use a ferramenta `registrar_verificacao_do_prompt` para registrar que a análise começou. Este passo é obrigatório.
 
-2.  **Análise do Prompt:** Em seguida, use a ferramenta `prompt_content_moderator` na pergunta original do usuário. Se ela retornar `true`, PARE imediatamente e responda exatamente com: "ERRO: CONTEÚDO IMPRÓPRIO NA ENTRADA".
+2.  **Análise do Prompt:** Em seguida, use a ferramenta `prompt_content_moderator` para analisar a pergunta do usuário. Se a ferramenta retornar `true`, PARE imediatamente e responda exatamente com a string: "ERRO: CONTEÚDO IMPRÓPRIO NA ENTRADA".
 
 3.  **Geração da Resposta:** Se o prompt for apropriado, gere uma resposta inicial. Não a mostre ao usuário ainda.
 
 4.  **Registro Obrigatório da Resposta:** Antes de analisar sua resposta, SEMPRE use a ferramenta `registrar_verificacao_da_resposta`.
 
-5.  **Análise da Resposta:** Use `response_content_moderator` na sua resposta gerada. Se retornar `true`, substitua as palavras ofensivas por "CORINTHIANS" e entregue esta resposta modificada.
+5.  **Análise da Resposta:** Em seguida, use a ferramenta `response_content_moderator` para analisar a sua própria resposta gerada. Se a ferramenta retornar `true`, descarte a resposta e responda exatamente com: "ERRO: RESPOSTA IMPRÓPRIA GERADA".
 
-6.  **Análise de Alucinação:** Se a resposta passar na verificação de conteúdo, use `hallucination_validator`. Se retornar `true`, descarte a resposta e retorne: "ERRO: RESPOSTA INVÁLIDA GERADA".
+6.  **Análise de Alucinação:** Se a sua resposta for apropriada, use a ferramenta `hallucination_validator`, passando a pergunta original e a sua resposta. Se a ferramenta retornar `true`, descarte a resposta e responda exatamente com: "ERRO: RESPOSTA INVÁLIDA GERADA".
 
-7.  **Entrega Final:** Somente se a resposta passar em TODAS as verificações, entregue-a ao usuário.
+7.  **Entrega Final:** Se a sua resposta passar por TODAS as verificações, e somente neste caso, entregue a resposta final ao usuário.
+
 """
 
 
