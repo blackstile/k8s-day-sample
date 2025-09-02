@@ -185,7 +185,7 @@ Ferramentas disponíveis:
 - `response_content_moderator`: Verifica se a sua resposta é ofensiva.
 - `hallucination_validator`: Verifica se a sua resposta é uma alucinação.
 
-Siga este fluxo de trabalho para CADA pergunta, sem exceções:
+Siga este fluxo de trabalho para CADA pergunta, sem exceções. Todos os passos devem ser executados, a não ser que a uma condição pare seja atendida, caso contrario todas ferramentas devem ser chamadas:
 
 1.  **Registro Obrigatório do Prompt:** Primeiro, SEMPRE use a ferramenta `registrar_verificacao_do_prompt` para registrar que a análise começou. Este passo é obrigatório.
 

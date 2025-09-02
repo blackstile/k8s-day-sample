@@ -47,11 +47,14 @@ class ModeratorTool:
                 LLM_PROMPT_TOKENS_TOTAL.labels(model_name=model_name).inc(usage.prompt_token_count)
                 LLM_RESPONSE_TOKENS_TOTAL.labels(model_name=model_name).inc(usage.candidates_token_count)
 
+            logger.info(f"Reposta da validação se o conteudo é inapropriado: {response.text}")
             is_inappropriate = json.loads(response.text).get("inapropriado", False)
+
             if is_inappropriate: 
                 logger.info(f"validation_type={validation_type} - is_inappropriate={is_inappropriate}")
                 LLM_VALIDATION_BLOCKED_TOTAL.labels(model_name=model_name, validation_type=validation_type).inc()
             current_span.set_attribute("app.is_inappropriate", is_inappropriate)
+            logger.info(f"Retornando is_inappropriate={is_inappropriate}")
             return is_inappropriate
         except Exception as e:
             logger.error(f"Erro na ferramenta de moderação: {e}. Bloqueando por segurança.")
