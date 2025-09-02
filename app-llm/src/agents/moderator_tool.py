@@ -32,7 +32,7 @@ class ModeratorTool:
         current_span.set_attribute("app.validation.type", validation_type)
         current_span.set_attribute("app.validation.text", text_to_validate)
         
-        model_name = 'gemini-1.5-pro-latest'
+        model_name = 'gemini-2.0-flash-lite'
         model = genai.GenerativeModel(model_name) 
         generation_config = genai.types.GenerationConfig(response_mime_type="application/json")
         prompt = f"""

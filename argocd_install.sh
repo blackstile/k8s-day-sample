@@ -53,8 +53,8 @@ install_argocd() {
   echo "👤 Usuário: admin"
   echo "🔑 Senha: ${ADMIN_PASS}"
   echo "==================================================="
-  echo "⚡ Para acessar a UI, rode em outro terminal:"
-  echo "kubectl port-forward svc/argocd-server -n ${ARGO_NS} 8080:443"
+  #echo "⚡ Para acessar a UI, rode em outro terminal:"
+  #echo "kubectl port-forward svc/argocd-server -n ${ARGO_NS} 8080:443"
 }
 
 uninstall_argocd() {

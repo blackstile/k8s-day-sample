@@ -32,7 +32,7 @@ class HallucinationValidatorTool:
         
         logger.info("ADK Tool: Executando ferramenta de validação de alucinação.")
         
-        model_name = 'gemini-1.5-pro-latest'
+        model_name = 'gemini-2.0-flash-lite'
         model = genai.GenerativeModel(model_name) 
         generation_config = genai.types.GenerationConfig(response_mime_type="application/json")
         prompt = f"""

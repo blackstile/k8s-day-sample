@@ -6,9 +6,8 @@ metadata:
 spec:
   selector:
     app: llm-app
-  type: NodePort 
+  type: ClusterIP
   ports:
     - protocol: TCP
       port: 5000
       targetPort: 5000
-      nodePort: 30500
