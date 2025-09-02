@@ -221,7 +221,7 @@ try:
             FunctionTool(hallucination_tool_with_metric)
 
         ],
-        model='gemini-2.0-flash-lite'
+        model='gemini-2.0-flash'
     )
     logger.info("Agente ADK inicializado com ferramentas com métricas.")
     
