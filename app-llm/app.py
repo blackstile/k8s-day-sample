@@ -140,15 +140,6 @@ prompt_log_tool = wrap_tool_with_metric(
 prompt_log_tool.__name__ = "registrar_verificacao_do_prompt"
 prompt_log_tool.__doc__ = "Use esta ferramenta PRIMEIRO para registrar que você está iniciando a análise de segurança da pergunta do usuário."
 
-response_log_tool = wrap_tool_with_metric(
-    tool_function=lambda: log_validation_step('response_moderation', 'verificacao_iniciada'),
-    counter=VALIDATION_EVENTS_TOTAL,
-    labels={'validation_type': 'response_moderation'}
-)
-response_log_tool.__name__ = "registrar_verificacao_da_resposta"
-response_log_tool.__doc__ = "Use esta ferramenta ANTES de verificar sua própria resposta, para registrar que você está iniciando a análise de segurança dela."
-
-
 prompt_moderator_tool = wrap_tool_with_metric(
     tool_function=ModeratorTool.validate,
     counter=VALIDATION_EVENTS_TOTAL,
@@ -156,6 +147,15 @@ prompt_moderator_tool = wrap_tool_with_metric(
 )
 prompt_moderator_tool.__name__ = "prompt_content_moderator"
 prompt_moderator_tool.__doc__ = "Use esta ferramenta para verificar se a PERGUNTA ORIGINAL DO USUÁRIO é apropriada. Retorna 'true' se for inapropriada."
+
+
+response_log_tool = wrap_tool_with_metric(
+    tool_function=lambda: log_validation_step('response_moderation', 'verificacao_iniciada'),
+    counter=VALIDATION_EVENTS_TOTAL,
+    labels={'validation_type': 'response_moderation'}
+)
+response_log_tool.__name__ = "registrar_verificacao_da_resposta"
+response_log_tool.__doc__ = "Use esta ferramenta ANTES de verificar sua própria resposta, para registrar que você está iniciando a análise de segurança dela."
 
 response_moderator_tool = wrap_tool_with_metric(
     tool_function=ModeratorTool.validate,
@@ -180,9 +180,9 @@ Você é um assistente de IA seguro e prestativo. Seu trabalho é seguir um proc
 
 Ferramentas disponíveis:
 - `registrar_verificacao_do_prompt`: Registra que a verificação de segurança da pergunta do usuário começou.
-- `prompt_content_moderator`: Verifica se a pergunta do usuário é ofensiva.
+- `prompt_content_moderator`: Verifica se a pergunta do usuário contem palavras consideradas ofensivas ou de baixo calão.
 - `registrar_verificacao_da_resposta`: Registra que a verificação de segurança da sua resposta gerada começou.
-- `response_content_moderator`: Verifica se a sua resposta é ofensiva.
+- `response_content_moderator`: Verifica se a sua resposta contem palavras consideradas ofensivas ou de baixo calão.
 - `hallucination_validator`: Verifica se a sua resposta é uma alucinação.
 
 Siga este fluxo de trabalho para CADA pergunta, sem exceções. Todos os passos devem ser executados, a não ser que a uma condição pare seja atendida, caso contrario todas ferramentas devem ser chamadas:
@@ -195,7 +195,7 @@ Siga este fluxo de trabalho para CADA pergunta, sem exceções. Todos os passos 
 
 4.  **Registro Obrigatório da Resposta:** Antes de analisar sua resposta, SEMPRE use a ferramenta `registrar_verificacao_da_resposta`.
 
-5.  **Análise da Resposta:** Em seguida, use a ferramenta `response_content_moderator` para analisar a sua própria resposta gerada. Se a ferramenta retornar `true`, descarte a resposta e responda exatamente com: "ERRO: RESPOSTA IMPRÓPRIA GERADA".
+5.  **Análise da Resposta:** Em seguida, use a ferramenta `response_content_moderator` para analisar a sua própria resposta gerada no passo 3 **Geração da Resposta:** . Se a ferramenta retornar `true`, descarte a resposta e responda exatamente com: "ERRO: RESPOSTA IMPRÓPRIA GERADA".
 
 6.  **Análise de Alucinação:** Se a sua resposta for apropriada, use a ferramenta `hallucination_validator`, passando a pergunta original e a sua resposta. Se a ferramenta retornar `true`, descarte a resposta e responda exatamente com: "ERRO: RESPOSTA INVÁLIDA GERADA".
 
